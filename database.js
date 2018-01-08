@@ -1,19 +1,38 @@
 /** @ignore */
-var Statement = Java.type('java.sql.Statement');
-/** @ignore */
-var Timestamp = Java.type('java.sql.Timestamp');
-/** @ignore */
-var InitialContext = Java.type('javax.naming.InitialContext');
+var Statement = Java.type('java.sql.Statement')
+var Timestamp = Java.type('java.sql.Timestamp')
+var InitialContext = Java.type('javax.naming.InitialContext')
+
+loadJar("./jarlib/tomcat-jdbc-9.0.2.jar")
+
+var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
+
 
 var ds = (function () {
-	if (config.database && config.database.datasource) {
-		var datasource = config.database.datasource;
-		var initContext = new InitialContext();
-		var ds = initContext.lookup(datasource);
 
-		log.info("db connection pool initialized.");
+	if (config.database) {
+		var cfg = Object.assign({
+			initialSize: 5,
+			maxActive: 15,
+			maxIdle: 7,
+			minIdle: 3
+		}, config.database)
 
-		return ds;
+		var ds = new DataSource()
+		ds.setDriverClassName(cfg.driverClassName)
+		ds.setUrl(cfg.UrlConnection)
+		ds.setUsername(cfg.userName)
+		ds.setPassword(cfg.password)
+		ds.setInitialSize(cfg.initialSize)
+		ds.setMaxActive(cfg.maxActive)
+		ds.setMaxIdle(cfg.maxIdle)
+		ds.setMinIdle(cfg.minIdle)	
+
+		// log.info("db connection pool initialized.")
+		// ds.setInitSQL("SET application_name = 'my-app'")
+		// ds.setValidationQuery("select 1")
+
+		return ds
 	} else
 		return null;
 })();
@@ -21,7 +40,7 @@ var ds = (function () {
 /**
  * 
  * @author nery
- * @version 1.201703b02
+ * @version 1.20180108
  *
  * @desc Agrupa funcionalidades relativas a base de dados relacional.
  * @namespace db

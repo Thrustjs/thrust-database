@@ -1,9 +1,9 @@
 {
   "bit": "database",
   
-  "path": "dist/database.js",
+  "path": "dist",
   
-  "version": "0.1.0",
+  "version": "0.1.1",
   
   "author": "Nery Jr",
   
