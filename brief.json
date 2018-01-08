@@ -1,13 +1,8 @@
 {
-  "bit": "database",
-  
-  "path": "dist",
-  
-  "version": "0.1.1",
-  
-  "author": "Nery Jr",
-  
   "description": "Módulo de acesso a base de dados relacional",
-  
-  "dependencies": []
+  "name": "database",
+  "path": "dist",
+  "version": "0.1.1",
+  "author": "Nery Jr",
+  "dependencies": [ ]
 }
