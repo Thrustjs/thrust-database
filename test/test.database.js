@@ -15,12 +15,14 @@ function show() {
 
 loadJar("./sqlite-jdbc-3.21.0.1.jar")
 
-let dbConfig = {        
-    "driverClassName": "org.sqlite.JDBC",
-    "urlConnection": "jdbc:sqlite:test.db",
-    "userName": "",
-    "password": ""
-}
+let dbConfig = getConfig().database
+
+// let dbConfig = {        
+//     "driverClassName": "org.sqlite.JDBC",
+//     "urlConnection": "jdbc:sqlite:test.db",
+//     "userName": "",
+//     "password": ""
+// }
 
 
 function log(user, dbFunctionName, statementMethodName, sql) {
@@ -33,10 +35,10 @@ function log(user, dbFunctionName, statementMethodName, sql) {
     )
 }
 
-dbConfig.logFunction = log.bind(null, "Nery")
+// dbConfig.logFunction = log.bind(null, "Nery")
 
-let db = require("../dist/dbv2").createDbInstance(dbConfig)
-let majesty = require("majesty")
+let db = require("thrust-bitcodes/database").createDbInstance(dbConfig)
+let majesty = require("thrust-bitcodes/majesty")
 
 
 function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
@@ -264,8 +266,8 @@ print("", res.failure.length, " scenarios executed with failure.\n")
 
 res.failure.forEach(function(fail) {
     print("[" + fail.scenario + "] =>", fail.execption)
-    if (fail.execption.printStackTrace)
-        fail.execption.printStackTrace()
+    // if (fail.execption.printStackTrace)
+    //     fail.execption.printStackTrace()
 })
 
 // java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001");

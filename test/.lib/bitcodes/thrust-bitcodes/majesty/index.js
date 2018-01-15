@@ -8,8 +8,8 @@ const ANSI_DARK_GREY = "\u001B[90m"
 const ANSI_LIGHT_RED = "\u001B[91m"
 const ANSI_LIGHT_BLUE = "\u001B[94m"
 
-var chai = require("./chai")
-// print("chai => ", JSON.stringify( Object.getOwnPropertyNames(chai) ))
+var chai = require("./chai").chai
+print("chai => ", JSON.stringify( Object.getOwnPropertyNames(chai) ))
 
 
 let majesty = {

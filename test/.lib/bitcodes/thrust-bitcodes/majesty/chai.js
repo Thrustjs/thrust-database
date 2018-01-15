@@ -1,14 +1,15 @@
 (function (f) {
-  if (typeof exports === "object" && typeof module !== "undefined") {
+/*   if (typeof exports === "object" && typeof module !== "undefined") {
     module.exports = f()
-  } else if (typeof define === "function" && define.amd) {
+  } else */ 
+  if (typeof define === "function" && define.amd) {
     define([], f)
   } else {
     var g;
 
     // NERY >>>
 
-    if (typeof exports === "object" && typeof module == "undefined") {
+    if (typeof exports === "object" /* && typeof module == "undefined" */) {
       g = exports
     } else 
 
