@@ -4,6 +4,10 @@
 
 loadJar("./sqlite-jdbc-3.21.0.1.jar")
 
+// loadJar("./idb-3.26.jar")
+// "driverClassName": "org.enhydra.instantdb.jdbc.idbDriver",
+// "urlConnection": "jdbc:idb:./instantdb.properties",
+
 var db = require("../dist/index")
 var majesty = require("majesty")
 
@@ -101,7 +105,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
                 expect(rs[0].count).to.equal(1)
             })
 
-            it("Executando sequência de comandos SQL em um cenário COM problemas ou erro (rollback) ", function() {
+            it("Executando transação (sequência de comandos SQL) em um cenário COM problemas ou erro (rollback) ", function() {
                 // testando exeções e rollback
                 rs = db.executeInSingleTransaction(function(db, context) {
                     rs = db.execute("UPDATE ttest SET num=" + context.num + ", txt = '" + context.txt + "' WHERE num=99")
@@ -122,13 +126,47 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
     })
 }
 
+java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001")
+
+/*
+let html = "<html>\n<body>\n"
+
+majesty.report = {
+    startExecution: function() {
+        html += "<H1>Majesty started</H1>"
+    },
+
+    executionFinished: function() {
+        print("\nFIM!!\n")
+    },
+
+    startOfSuite: function(suite) {
+        // print(Array(suite.level+1).join("    "), suite.description)
+        html += "<p>" + Array(suite.level+1).join("&nbsp&nbsp&nbsp") + suite.description + "</p>\n"
+    },
+
+    endOfSuite: function(suite) {
+    },
+
+    scenarioExecuted: function(scenario) {
+        let result = "" + "[" + ((scenario.passed) ? "success" : "error") + "]"
+
+        // print(Array(scenario.level+1).join("    "), result, scenario.description)
+        // html += Array(scenario.level+1).join("&nbsp&nbsp&nbsp") +  result +  scenario.description
+    }
+}
+*/
+
 var res = majesty.run(exec)
-    
+
 print("", res.success.length, " scenarios executed with success and")
-print("", res.failure.length, " scenarios executed with failure.")
+print("", res.failure.length, " scenarios executed with failure.\n")
 
 res.failure.forEach(function(fail) {
-    print(fail.scenario, " => ", fail.execption)
+    print("[", fail.scenario, "] => ", fail.execption)
 })
+
+// html += "</body>\n</html>\n"
+// print("\n", html, "\n")
 
 // java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001");

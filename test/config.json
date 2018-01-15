@@ -1,0 +1,12 @@
+{
+    "database" : {
+        "initialSize": 5,
+        "maxActive": 15,
+        "maxIdle": 7,
+        "minIdle": 3,
+        "driverClassName": "org.sqlite.JDBC",
+        "urlConnection": "jdbc:sqlite:test.db",
+        "userName": "",
+        "password": ""
+    }
+}

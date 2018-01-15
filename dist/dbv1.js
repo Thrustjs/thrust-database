@@ -2,8 +2,8 @@
 var Statement = Java.type("java.sql.Statement")
 var Timestamp = Java.type("java.sql.Timestamp")
 
-loadJar("./jarlib/tomcat-jdbc-9.0.2.jar")
-loadJar("./jarlib/tomcat-juli-9.0.2.jar")
+// loadJar("./jarlib/tomcat-jdbc-9.0.2.jar")
+// loadJar("./jarlib/tomcat-juli-9.0.2.jar")
 
 var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
 

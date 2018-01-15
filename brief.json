@@ -1,8 +1,13 @@
 {
-  "description": "Módulo de acesso a base de dados relacional",
-  "name": "database",
-  "path": "dist",
-  "version": "0.1.1",
-  "author": "Nery Jr",
-  "dependencies": [ ]
+    "description": "Módulo de acesso a base de dados relacional",
+    "name": "database",
+    "path": "dist",
+    "version": "0.1.2",
+    "author": "Nery Jr",
+    "dependencies": {
+        "jars": [
+            "tomcat-jdbc-9.0.2.jar",
+            "tomcat-juli-9.0.2.jar"
+        ]
+    }
 }

@@ -8,7 +8,7 @@ const ANSI_DARK_GREY = "\u001B[90m"
 const ANSI_LIGHT_RED = "\u001B[91m"
 const ANSI_LIGHT_BLUE = "\u001B[94m"
 
-var chai = require("chai")
+var chai = require("./chai")
 // print("chai => ", JSON.stringify( Object.getOwnPropertyNames(chai) ))
 
 
@@ -24,22 +24,22 @@ let majesty = {
     nextId: generateId(),
     report: {
         startExecution: function() {
-            print(ANSI_LIGHT_BLUE + "\n### Majesty started ########################################", ANSI_RESET)
+            print(ANSI_LIGHT_BLUE + "\n### Majesty started ##################################################", ANSI_RESET)
         },
         executionFinished: function() {
-            print(ANSI_LIGHT_BLUE + "### Majesty finished #######################################\n", ANSI_RESET)
+            print(ANSI_LIGHT_BLUE + "### Majesty finished #################################################\n", ANSI_RESET)
         },
         startOfSuite: function(suite) {
             // print(ANSI_WHITE, Array(suite.level+1).join("\t"), suite.description, ANSI_DARK_GREY, "running...", ANSI_RESET)
             print(ANSI_WHITE, Array(suite.level+1).join("    "), suite.description, ANSI_RESET)
         },
         endOfSuite: function(suite) {
-            let result = (suite.passed) ? ANSI_GREEN + "success" + ANSI_DARK_GREY + "!" : ANSI_LIGHT_RED + "error" + ANSI_DARK_GREY + "."
+            let result = (suite.passed) ? ANSI_GREEN + "[success]" + ANSI_DARK_GREY + "!" : ANSI_LIGHT_RED + "error" + ANSI_DARK_GREY + "."
 
             print(ANSI_DARK_GREY, Array(suite.level+1).join("    "), "Finished with", result, ANSI_RESET)
         },
         scenarioExecuted: function(scenario) {
-            let result = "" + ANSI_WHITE + "[" + ((scenario.passed) ? ANSI_GREEN + "success" : ANSI_LIGHT_RED + "error") + ANSI_WHITE + "]" + ANSI_RESET
+            let result = "" + ANSI_WHITE + "[" + ((scenario.passed) ? ANSI_GREEN + "OK" : ANSI_LIGHT_RED + "NO") + ANSI_WHITE + "]" + ANSI_RESET
 
             print(Array(scenario.level+1).join("    "), result, ANSI_WHITE + scenario.description, ANSI_RESET)
         }
