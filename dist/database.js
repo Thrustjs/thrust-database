@@ -167,15 +167,48 @@ function sqlInsert(ds, sql, returnGeneratedKeys) {
 }
 
 
-function sqlSelect(ds, sql) {
-    let cnx, stmt, rs, rsmd, numColumns, result
+function sqlSelect(ds, sql, data) {
+    let cnx, stmt, rs, rsmd, numColumns, result, params
 
     if (hasSqlInject(sql)) {
         return sqlInjectionError
     }
 
     cnx = this.connection || getConnection(ds)
+    params = sql.match(/:\w+/g)
+    sql = sql.replace(/(:\w+)/g, "?")
     stmt = cnx.prepareStatement(sql)
+
+    if (data && data.constructor.name === "Object") {
+        params = params.map(function (param) {
+            return param.slice(1)
+        })
+        for (let name in data) {
+            let value = data[name]
+            let col = params.indexOf(name) + 1
+
+            switch (value.constructor.name) {
+                case "String":
+                    stmt.setString(col, value)
+                    break
+
+                case "Number":
+                    if (Math.floor(value) === value) {
+                        stmt.setInt(col, value)
+                    } else {
+                        stmt.setFloat(col, value)
+                    }
+                    break
+
+                default:
+                    stmt.setObject(col, value)
+                    break
+            }
+
+            col++
+        }
+    }
+
     this.logFunction("execute", "executeQuery", sql)
     rs = stmt.executeQuery()
 

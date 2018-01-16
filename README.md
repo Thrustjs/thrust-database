@@ -38,6 +38,9 @@ Agora ficou fácil. É só utilizar os métodos de acesso à dados para construi
 
             rs = db.insert("ttest", regs)
             show("Array de chaves dos registros inseridos: ", rs.keys)
+
+            rs = db.execute("SELECT * FROM ttest WHERE num = :numero AND txt = :texto", {numero: 11, texto: "Num Onze"})
+            show("Result =>", rs)
         }
     }
 
