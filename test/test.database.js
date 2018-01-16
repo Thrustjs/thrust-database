@@ -16,8 +16,8 @@ function log(user, dbFunctionName, statementMethodName, sql) {
 
 // dbConfig.logFunction = log.bind(null, "Nery")
 
-let db = require("thrust-bitcodes/database").createDbInstance(dbConfig)
-let majesty = require("thrust-bitcodes/majesty")
+let db = require("database").createDbInstance(dbConfig)
+let majesty = require("majesty")
 
 function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
   var rs
