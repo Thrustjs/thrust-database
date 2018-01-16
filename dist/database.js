@@ -1,5 +1,5 @@
 /**
- * 
+ *
  * @author nery
  * @version 0.2.20180110
  *
@@ -10,16 +10,10 @@ let Statement = Java.type("java.sql.Statement")
 let Timestamp = Java.type("java.sql.Timestamp")
 var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
 
-// loadJar("./jarlib/tomcat-jdbc-9.0.2.jar")
-// loadJar("./jarlib/tomcat-juli-9.0.2.jar")
-
-// let DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
-
 const sqlInjectionError = {
     error: true,
     message: "Attempt sql injection!"
 }
-
 
 function createDbInstance(options) {
     options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
@@ -64,7 +58,7 @@ function getInfoColumns(ds, table) {
         column.isAutoIncrment = infosCols.getString("IS_AUTOINCREMENT")
         column.ordinalPosition = infosCols.getString("ORDINAL_POSITION")
         column.isGeneratedColumn = infosCols.getString("IS_GENERATEDCOLUMN")
-        
+
         cols.push(column)
         // print(JSON.stringify(column))
     }
@@ -97,13 +91,13 @@ function createDataSource(options) {
     ds.setMaxActive(cfg.maxActive)
     ds.setMaxIdle(cfg.maxIdle)
     ds.setMinIdle(cfg.minIdle)
-    
+
     return ds
 }
 
 
 /**
- * Retorna um objeto Connection que representa a conexão com o banco de dados. Esta API é exclusiva para uso  
+ * Retorna um objeto Connection que representa a conexão com o banco de dados. Esta API é exclusiva para uso
  * interno do Thrust.
  * @param {boolean} autoCommit - Utilizado para definir se a conexão com o banco deve fazer *commit*
  * a cada execução de uma commando SQL.
@@ -111,7 +105,7 @@ function createDataSource(options) {
  */
 function getConnection(ds, autoCommit) {
     let connection = ds.getConnection()
-    
+
     connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
 
     return connection
@@ -127,7 +121,7 @@ function hasSqlInject(sql) {
 
 function sqlInsert(ds, sql, returnGeneratedKeys) {
     let cnx, stmt, rsk, rows
-    
+
     if (hasSqlInject(sql)) {
         return sqlInjectionError
     }
@@ -162,7 +156,7 @@ function sqlInsert(ds, sql, returnGeneratedKeys) {
 
 function sqlSelect(ds, sql) {
     let cnx, stmt, rs, rsmd, numColumns, result
-    
+
     if (hasSqlInject(sql)) {
         return sqlInjectionError
     }
@@ -181,7 +175,7 @@ function sqlSelect(ds, sql) {
         cnx.close()
         cnx = null
     }
-    
+
     return result
 }
 
@@ -193,8 +187,8 @@ function sqlExecute(ds, sql, dataOrReturnGeneratedKeys) {
 
     if (hasSqlInject(sql)) {
         return sqlInjectionError
-    }    
-    
+    }
+
     if (sql.substring(0,6).toUpperCase() === "SELECT") {
         return sql_select(sql, dataOrReturnGeneratedKeys)
     } else if (sql.substring(0,6).toUpperCase() === "INSERT") {
@@ -231,7 +225,7 @@ function fetchRows(rs) {
     for (let cl = 1; cl < numColumns + 1; cl++) {
         columns[cl] = rsmd.getColumnLabel(cl)
         types[cl] = rsmd.getColumnType(cl)
-    }    
+    }
 
     while (rs.next()) {
         let row = {}
@@ -244,7 +238,7 @@ function fetchRows(rs) {
             } else {
                 value = rs.getObject(nc)
             }
-            
+
             if (rs.wasNull()) {
                 row[columns[nc]] = null
             } else if ([91, 92, 93].indexOf(types[nc]) >= 0) {
@@ -270,7 +264,7 @@ function fetchRows(rs) {
 /**
  * Insere um ou mais objetos na tabela.
  * @param {String} table - Nome da tabela
- * @param {Array|Object} itens - Array com objetos a serem inseridos na tabela, 
+ * @param {Array|Object} itens - Array com objetos a serem inseridos na tabela,
  * ou objeto único a ser inserido.
  * @return {Array} Retorna um Array com os ID's (chaves) dos itens inseridos.
  */
@@ -280,7 +274,7 @@ function tableInsert(ds, table, itens) {
     let cnx = this.connection || getConnection(ds)
     let keys = []
     let stmt
-    let affected 
+    let affected
 
     function buildSqlCommand(reg) {
         let vrg = ""
@@ -291,23 +285,23 @@ function tableInsert(ds, table, itens) {
         for (let key in reg) {
             val = reg[key]
             cols += vrg + key
-            values += (val.constructor.name === "Number") 
+            values += (val.constructor.name === "Number")
                 ? (vrg + val)
                 : (vrg + sdel + val + sdel)
 
             vrg = ","
         }
-        
+
         // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
         return "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") "
     }
 
     if (itens.constructor.name == "Array") {
-        stmt = cnx.createStatement()   
+        stmt = cnx.createStatement()
 
         itens.forEach(function (reg, idx) {
             let sql = buildSqlCommand(reg)
-            
+
             if (hasSqlInject(sql)) {
                 return sqlInjectionError
             }
@@ -341,12 +335,12 @@ function tableInsert(ds, table, itens) {
         cnx.close()
         conn = null
     }
-    
+
     return {
         error: false,
         keys: keys,
         affectedRows: affected
-    }        
+    }
 }
 
 
@@ -369,7 +363,7 @@ function tableUpdate(ds, table, row, whereCondition) {
         let val = row[col]
 
         values += vrg + col + " = "
-        values += (val.constructor.name === "Number") 
+        values += (val.constructor.name === "Number")
             ? val
             : (sdel + val + sdel)
 
@@ -381,7 +375,7 @@ function tableUpdate(ds, table, row, whereCondition) {
             let val = whereCondition[wkey]
 
             where += and + wkey + " = "
-            where += (val.constructor.name === "Number") 
+            where += (val.constructor.name === "Number")
                 ? val
                 : (sdel + val + sdel)
 
@@ -393,18 +387,18 @@ function tableUpdate(ds, table, row, whereCondition) {
 
     if (hasSqlInject(sql)) {
         return sqlInjectionError
-    } 
+    }
 
-    let cnx = this.connection || getConnection(ds)    
+    let cnx = this.connection || getConnection(ds)
     let stmt = cnx.prepareStatement(sql)
     this.logFunction("update", "executeUpdate", sql)
     let result = stmt.executeUpdate()
-    
+
     /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
     if (!this.connection) {
         cnx.close()
         conn = null
-    }    
+    }
 
     return {
         error: false,
@@ -432,7 +426,7 @@ function tableDelete(ds, table, whereCondition) {
             let val = whereCondition[wkey]
 
             where += and + wkey + " = "
-            where += (val.constructor.name === "Number") 
+            where += (val.constructor.name === "Number")
                 ? val
                 : (sdel + val + sdel)
 
@@ -444,19 +438,19 @@ function tableDelete(ds, table, whereCondition) {
 
     if (hasSqlInject(sql)) {
         return sqlInjectionError
-    } 
+    }
 
-    let cnx = this.connection || getConnection(ds)    
+    let cnx = this.connection || getConnection(ds)
     let stmt = cnx.prepareStatement(sql)
 
     this.logFunction("delete", "executeUpdate", sql)
     result = stmt.executeUpdate()
-    
+
     /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
     if (!this.connection) {
         cnx.close()
         conn = null
-    }    
+    }
 
     return {
         error: false,
@@ -525,8 +519,8 @@ function executeInSingleTransaction(ds, fncScript, context) {
 
 
 /**
- * @param {FileInputStream} fis 
- * @param {int} size 
+ * @param {FileInputStream} fis
+ * @param {int} size
  */
 function Blob(fis, size) {
     this.fis = fis
@@ -536,4 +530,4 @@ function Blob(fis, size) {
 
 exports = {
     createDbInstance: createDbInstance
-} 
+}

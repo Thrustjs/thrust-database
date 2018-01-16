@@ -1,0 +1,15 @@
+{
+  "description": "Módulo de testes do database",
+  "version": "0.2.0",
+  "author": "Nery Jr",
+  "dependencies": {
+    "bitcodes": [
+      "thrust-bitcodes/majesty"
+    ],
+    "jars": [
+      "org.apache.tomcat:tomcat-jdbc:9.0.2",
+      "org.apache.tomcat:tomcat-juli:9.0.2",
+      "org.xerial:sqlite-jdbc:3.21.0.1"
+    ]
+  }
+}
