@@ -41,6 +41,9 @@ Agora ficou fácil. É só utilizar os métodos de acesso à dados para construi
 
             rs = db.execute("SELECT * FROM ttest WHERE num = :numero AND txt = :texto", {numero: 11, texto: "Num Onze"})
             show("Result =>", rs)
+
+            rs = db.select("SELECT * FROM ttest WHERE num = :numero AND txt = :texto", {numero: 10, texto: "Num Dez"})
+            show("Result =>", rs)
         }
     }
 
