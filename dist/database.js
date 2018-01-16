@@ -1,7 +1,7 @@
 /**
  *
  * @author nery
- * @version 0.2.20180110
+ * @version 0.2.20180116
  *
  */
 
@@ -10,10 +10,15 @@ let Statement = Java.type("java.sql.Statement")
 let Timestamp = Java.type("java.sql.Timestamp")
 var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
 
+let config = getConfig()
+
+config.dsm = config.dsm || {}
+
 const sqlInjectionError = {
     error: true,
     message: "Attempt sql injection!"
 }
+
 
 function createDbInstance(options) {
     options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
@@ -71,7 +76,13 @@ function getInfoColumns(ds, table) {
 
 
 function createDataSource(options) {
-    options.logFunction("createDataSource", "DataSource", "")
+    let urlConnection = options.urlConnection
+
+    if (config.dsm[urlConnection]) {
+        return config.dsm[urlConnection]
+    }
+
+    options.logFunction("createDataSource", "DataSource", urlConnection)
 
     let ds = new DataSource()
     let cfg = Object.assign({
@@ -91,6 +102,8 @@ function createDataSource(options) {
     ds.setMaxActive(cfg.maxActive)
     ds.setMaxIdle(cfg.maxIdle)
     ds.setMinIdle(cfg.minIdle)
+
+    config.dsm[urlConnection] = ds
 
     return ds
 }

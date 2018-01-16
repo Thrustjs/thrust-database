@@ -8,6 +8,6 @@ idb
 idb-3.26.jar
 instantdb.properties
 test.db
-test\test.db
-.lib
+test/test.db
 test/.lib
+.lib

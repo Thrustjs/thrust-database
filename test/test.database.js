@@ -2,7 +2,7 @@
  * @author Nery Jr
  */
 
-let dbConfig = getBitcodeConfig('database')()
+let dbConfig = getBitcodeConfig("database")()
 
 function log(user, dbFunctionName, statementMethodName, sql) {
   let d = new Date()
@@ -18,6 +18,7 @@ function log(user, dbFunctionName, statementMethodName, sql) {
 
 let db = require("database").createDbInstance(dbConfig)
 let majesty = require("majesty")
+
 
 function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
   var rs
