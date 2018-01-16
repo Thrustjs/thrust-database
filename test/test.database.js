@@ -103,8 +103,11 @@ function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
                 expect(rs.constructor.name).to.equal("Array")
 
                 rs = db.execute("SELECT * FROM ttest WHERE num = :numero AND txt = :texto", {numero: 5, texto: "Num Cinco"})
-                // print(JSON.stringify(rs))
                 expect(rs.length).to.equal(1)
+                
+                rs = db.select("SELECT * FROM ttest WHERE num = :numero AND txt = :texto", {numero: 2, texto: "Num Dois"})
+                expect(rs.length).to.equal(1)
+                // print(JSON.stringify(rs))
 
                 
 
