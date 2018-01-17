@@ -1,7 +1,15 @@
-# thrust-database
+Database
+===============
 
-Módulo de acesso a dados em Banco de Dados Relacional (SQL DB)
+Database é um *bitcode* de acesso a dados em Bando de Dados Relacional (SQL DB) para [ThrustJS](https://github.com/thrustjs/thrust).
 
+# Instalação
+
+Posicionado em um app [ThrustJS](https://github.com/thrustjs/thrust), no seu terminal:
+
+```bash
+thrust install database
+```
 
 # Tutorial
 
@@ -10,7 +18,7 @@ Para utilizar as APIs de acesso a banco de dados é necessário importar o bitco
     let dbm = require("database")
 ```
 
-Defina as opções do pool de conexões. Uma boa prática é colocar esta configuração no arquivo config.json que 
+Defina as opções do pool de conexões. Uma boa prática é colocar esta configuração no arquivo config.json que
 fica no diretório raiz da aplicação
 ```javascript
     let dbConfig = getBitcodeConfig("database")()
@@ -24,7 +32,7 @@ Depois execute a função de criação do objeto que disponibilizará as APIs de
 Agora ficou fácil. É só utilizar os métodos de acesso à dados para construir sua aplicação
 ```javascript
     let rs
-    
+
     rs = db.execute("DROP TABLE IF EXISTS ttest")
 
     if (rs.error === false) {
@@ -48,5 +56,50 @@ Agora ficou fácil. É só utilizar os métodos de acesso à dados para construi
     }
 
 ```
+## Parâmetros de configuração
+As propriedades abaixo devem ser configuradas no arquivo *config.json* (distribuído juntamente com o ThrustJS):
 
+``` javascript
+{
+  ...
+  "database": { /*Configuração de um database*/
+    "driverClassName": /*String Class do driver de conexão*/,
+    "urlConnection": /*String Url de conexão com o banco*/,
+    "userName": /*String Usuário do banco*/,
+    "password": /*String Senha do banco*/,
 
+    /* As configurações abaixo são opcionais
+    e possuem os defaults apresentados*/
+    "initialSize": 5,
+    "maxActive": 15,
+    "maxIdle": 7,
+    "minIdle": 3,
+  }
+}
+```
+## Configurando múltiplos databases
+
+Múltiplos databases podem ser utilizados em sua aplição, bastando criar cada uma das configurações de acesso e instanciando o database com uma delas, exemplo:
+
+``` javascript
+{
+  ...
+  "database1": { /*Configuração do database1*/
+    "driverClassName": /*String Class do driver de conexão*/,
+    ...
+  },
+  "database2": { /*Configuração do database2*/
+    "driverClassName": /*String Class do driver de conexão*/,
+    ...
+  }
+}
+```
+``` javascript
+let dbm = require("database")
+
+let dbConfig1 = getBitcodeConfig("database1")()
+let db = dbm.createDbInstance(dbConfig1)
+
+let dbConfig2 = getBitcodeConfig("database2")()
+let db = dbm.createDbInstance(dbConfig2)
+```
