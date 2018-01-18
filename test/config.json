@@ -1,12 +1,44 @@
 {
     "database" : {
-        "initialSize": 5,
-        "maxActive": 15,
-        "maxIdle": 7,
-        "minIdle": 3,
-        "driverClassName": "org.sqlite.JDBC",
-        "urlConnection": "jdbc:sqlite:test.db",
-        "userName": "",
-        "password": ""
+        "sqlite" : {
+            "initialSize": 5,
+            "maxActive": 15,
+            "maxIdle": 7,
+            "minIdle": 3,
+            "driverClassName": "org.sqlite.JDBC",
+            "urlConnection": "jdbc:sqlite:test.db",
+            "userName": "",
+            "password": ""
+        },
+        "javadb": {
+            "initialSize": 5,
+            "maxActive": 15,
+            "maxIdle": 7,
+            "minIdle": 3,
+            "driverClassName": "org.apache.derby.jdbc.EmbeddedDriver",
+            "urlConnection": "jdbc:derby:dbtest;create=true",
+            "userName": "",
+            "password": ""
+        },
+        "h2": {
+            "initialSize": 5,
+            "maxActive": 15,
+            "maxIdle": 7,
+            "minIdle": 3,
+            "driverClassName": "org.h2.Driver",
+            "urlConnection": "jdbc:h2:./test",
+            "userName": "",
+            "password": ""
+        },
+        "postgresql": {
+            "initialSize": 5,
+            "maxActive": 15,
+            "maxIdle": 7,
+            "minIdle": 3,
+            "driverClassName": "org.postgresql.Driver",
+            "urlConnection": "jdbc:postgresql://localhost:5432/postgres",
+            "userName": "postgres",
+            "password": "softbox"
+        }
     }
 }
