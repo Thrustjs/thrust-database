@@ -1,14 +1,13 @@
 /**
  *
  * @author nery
- * @version 0.2.20180116
+ * @version 0.2.20180119
  *
  */
 
 /** @ignore */
 let Types = Java.type('java.sql.Types')
 let Statement = Java.type('java.sql.Statement')
-// let Timestamp = Java.type('java.sql.Timestamp')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
 let config = getConfig()
