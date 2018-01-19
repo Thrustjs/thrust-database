@@ -10,4 +10,6 @@ instantdb.properties
 test.db
 test/test.db
 test/.lib
+test/test.mv.db
+test/test.trace.db
 .lib

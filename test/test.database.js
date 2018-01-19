@@ -241,11 +241,10 @@ function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
           db.execute('UPDATE "ttest" SET "num" = :num, "txt" = :txt WHERE "num"=9', context)
         }, {num: 99, txt: 'Num Noventa e Nove'})
 
-        // show(db.execute('SELECT * FROM "ttest"'))
-
         expect(rs.error).to.equal(false)
-        expect(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99').length).to.equal(1)
-        expect(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99')[0].count).to.equal(1)
+        expect(db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99').length).to.equal(1)
+        // show(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99'))
+        expect(db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')[0].count).to.equal(1)
       })
 
       it('Executando transação (sequência de comandos SQL) em um cenário COM problemas ou erro (rollback) ', function () {
@@ -260,7 +259,7 @@ function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
         }, {num: 999, txt: 'Num Novecenetos e Noventa e Nove'})
 
         expect(rs.error).to.equal(true)
-        expect((rs = db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99')).length).to.equal(1)
+        expect((rs = db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')).length).to.equal(1)
         expect(rs[0].count).to.equal(1)
       })
     })

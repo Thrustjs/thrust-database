@@ -5,109 +5,107 @@
  *
  */
 
- /** @ignore */
-let Statement = Java.type("java.sql.Statement")
-let Timestamp = Java.type("java.sql.Timestamp")
-var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
+/** @ignore */
+let Types = Java.type('java.sql.Types')
+let Statement = Java.type('java.sql.Statement')
+// let Timestamp = Java.type('java.sql.Timestamp')
+var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
 let config = getConfig()
 
 config.dsm = config.dsm || {}
 
 const sqlInjectionError = {
-    error: true,
-    message: "Attempt sql injection!"
+  error: true,
+  message: 'Attempt sql injection!'
 }
 
+function createDbInstance (options) {
+  options.logFunction = options.logFunction || function (dbFunctionName, statementMethodName, sql) { }
 
-function createDbInstance(options) {
-    options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
+  let ds = createDataSource(options)
+  let ctx = {
+    stringDelimiter: options.stringDelimiter || "'",
+    logFunction: options.logFunction
+  }
 
-    let ds = createDataSource(options)
-    let ctx = {
-        stringDelimiter: options.stringDelimiter || "'",
-        logFunction: options.logFunction
-    }
+  return {
+    getInfoColumns: getInfoColumns.bind(ctx, ds),
 
-    return {
-        "getInfoColumns": getInfoColumns.bind(ctx, ds),
+    insert: tableInsert.bind(ctx, ds),
 
-        "insert": tableInsert.bind(ctx, ds),
+    select: sqlSelect.bind(ctx, ds),
 
-        "select": sqlSelect.bind(ctx, ds),
+    update: tableUpdate.bind(ctx, ds),
 
-        "update": tableUpdate.bind(ctx, ds),
+    delete: tableDelete.bind(ctx, ds),
 
-        "delete": tableDelete.bind(ctx, ds),
+    execute: sqlExecute.bind(ctx, ds),
 
-        "execute": sqlExecute.bind(ctx, ds)
-    }
-
+    executeInSingleTransaction: executeInSingleTransaction.bind(ctx, ds)
+  }
 }
 
+function getInfoColumns (ds, table) {
+  let cnx = getConnection(ds)
+  let databaseMetaData = cnx.getMetaData()
+  let infosCols = databaseMetaData.getColumns(null, null, table, null)
+  let cols = []
 
-function getInfoColumns(ds, table) {
-    let cnx = getConnection(ds)
-    let databaseMetaData = cnx.getMetaData()
-    let infosCols = databaseMetaData.getColumns(null,null, table, null)
-    let cols = []
+  while (infosCols.next()) {
+    let column = {}
 
-    while(infosCols.next()) {
-        let column = {}
+    column.name = infosCols.getString('COLUMN_NAME')
+    column.dataType = infosCols.getString('DATA_TYPE')
+    column.size = infosCols.getString('COLUMN_SIZE')
+    column.decimalDigits = infosCols.getString('DECIMAL_DIGITS')
+    column.isNullable = infosCols.getString('IS_NULLABLE')
+    column.isAutoIncrment = infosCols.getString('IS_AUTOINCREMENT')
+    column.ordinalPosition = infosCols.getString('ORDINAL_POSITION')
+    column.isGeneratedColumn = infosCols.getString('IS_GENERATEDCOLUMN')
 
-        column.name = infosCols.getString("COLUMN_NAME")
-        column.dataType = infosCols.getString("DATA_TYPE")
-        column.size = infosCols.getString("COLUMN_SIZE")
-        column.decimalDigits = infosCols.getString("DECIMAL_DIGITS")
-        column.isNullable = infosCols.getString("IS_NULLABLE")
-        column.isAutoIncrment = infosCols.getString("IS_AUTOINCREMENT")
-        column.ordinalPosition = infosCols.getString("ORDINAL_POSITION")
-        column.isGeneratedColumn = infosCols.getString("IS_GENERATEDCOLUMN")
+    cols.push(column)
+    // print(JSON.stringify(column))
+  }
 
-        cols.push(column)
-        // print(JSON.stringify(column))
-    }
+  cnx.close()
+  cnx = null
 
-    cnx.close()
-    conn = null
-
-    return cols
+  return cols
 }
 
+function createDataSource (options) {
+  let urlConnection = options.urlConnection
 
-function createDataSource(options) {
-    let urlConnection = options.urlConnection
+  if (config.dsm[urlConnection]) {
+    return config.dsm[urlConnection]
+  }
 
-    if (config.dsm[urlConnection]) {
-        return config.dsm[urlConnection]
-    }
+  options.logFunction('createDataSource', 'DataSource', urlConnection)
 
-    options.logFunction("createDataSource", "DataSource", urlConnection)
+  let ds = new DataSource()
+  let cfg = Object.assign({
+    'initialSize': 5,
+    'maxActive': 15,
+    'maxIdle': 7,
+    'minIdle': 3,
+    'userName': '',
+    'password': ''
+  }, options)
 
-    let ds = new DataSource()
-    let cfg = Object.assign({
-        "initialSize": 5,
-        "maxActive": 15,
-        "maxIdle": 7,
-        "minIdle": 3,
-        "userName": "",
-        "password": ""
-    }, options)
+  ds.setDriverClassName(cfg.driverClassName)
+  ds.setUrl(cfg.urlConnection)
+  ds.setUsername(cfg.userName)
+  ds.setPassword(cfg.password)
+  ds.setInitialSize(cfg.initialSize)
+  ds.setMaxActive(cfg.maxActive)
+  ds.setMaxIdle(cfg.maxIdle)
+  ds.setMinIdle(cfg.minIdle)
 
-    ds.setDriverClassName(cfg.driverClassName)
-    ds.setUrl(cfg.urlConnection)
-    ds.setUsername(cfg.userName)
-    ds.setPassword(cfg.password)
-    ds.setInitialSize(cfg.initialSize)
-    ds.setMaxActive(cfg.maxActive)
-    ds.setMaxIdle(cfg.maxIdle)
-    ds.setMinIdle(cfg.minIdle)
+  config.dsm[urlConnection] = ds
 
-    config.dsm[urlConnection] = ds
-
-    return ds
+  return ds
 }
-
 
 /**
  * Retorna um objeto Connection que representa a conexão com o banco de dados. Esta API é exclusiva para uso
@@ -116,196 +114,203 @@ function createDataSource(options) {
  * a cada execução de uma commando SQL.
  * @returns {Connection}
  */
-function getConnection(ds, autoCommit) {
-    let connection = ds.getConnection()
+function getConnection (ds, autoCommit) {
+  let connection = ds.getConnection()
 
-    connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
+  connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
 
-    return connection
+  return connection
 }
 
+function hasSqlInject (sql) {
+  var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
-function hasSqlInject(sql) {
-    var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
-
-    return (testSqlInject != null) ? true : false
+  return (testSqlInject != null)
 }
 
+function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
+  let stmt
+  let params = sql.match(/:\w+/g)
 
-function sqlInsert(ds, sql, returnGeneratedKeys) {
-    let cnx, stmt, rsk, rows
+  sql = sql.replace(/(:\w+)/g, '?')
+  stmt = (returnGeneratedKeys)
+    ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+    : cnx.prepareStatement(sql)
 
-    if (hasSqlInject(sql)) {
-        return sqlInjectionError
+  if (params && data && data.constructor.name === 'Object') {
+    params = params.map(function (param) {
+      return param.slice(1)
+    })
+    for (let name in data) {
+      let value = data[name]
+      let col = params.indexOf(name) + 1
+
+      switch (value.constructor.name) {
+        case 'String':
+          stmt.setString(col, value)
+          break
+
+        case 'Number':
+          if (Math.floor(value) === value) {
+            stmt.setLong(col, value)
+          } else {
+            stmt.setDouble(col, value)
+          }
+          break
+
+        default:
+          stmt.setObject(col, value)
+          break
+      }
+
+      col++
     }
+  }
 
-    cnx = this.connection || getConnection(ds)
-    stmt = cnx.prepareStatement(sql, (returnGeneratedKeys)
-        ? Statement.RETURN_GENERATED_KEYS
-        : Statement.NO_GENERATED_KEYS)
-    this.logFunction("execute", "executeUpdate", sql)
-    stmt.executeUpdate()
-    rsk = stmt.getGeneratedKeys()
-    rows = []
-
-    while (rsk.next()) {
-        rows.push(rsk.getObject(1))
-    }
-
-    stmt.close()
-    stmt = null
-
-    if (!this.connection) {
-        cnx.close()
-        cnx = null
-    }
-
-    return {
-        error: false,
-        keys: rows
-    }
+  return stmt
 }
 
+function sqlInsert (ds, sql, data, returnGeneratedKeys) {
+  let cnx, stmt, rsk, rows
 
-function sqlSelect(ds, sql, data) {
-    let cnx, stmt, rs, rsmd, numColumns, result, params
+  if (hasSqlInject(sql)) {
+    return sqlInjectionError
+  }
 
-    if (hasSqlInject(sql)) {
-        return sqlInjectionError
-    }
+  cnx = this.connection || getConnection(ds)
+  // stmt = cnx.prepareStatement(sql, (returnGeneratedKeys)
+  //     ? Statement.RETURN_GENERATED_KEYS
+  //     : Statement.NO_GENERATED_KEYS)
+  stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys)
+  this.logFunction('execute', 'executeUpdate', sql)
+  stmt.executeUpdate()
+  rsk = stmt.getGeneratedKeys()
+  rows = []
 
-    cnx = this.connection || getConnection(ds)
-    params = sql.match(/:\w+/g)
-    sql = sql.replace(/(:\w+)/g, "?")
-    stmt = cnx.prepareStatement(sql)
+  while (rsk && rsk.next()) {
+    rows.push(rsk.getObject(1))
+  }
 
-    if (data && data.constructor.name === "Object") {
-        params = params.map(function (param) {
-            return param.slice(1)
-        })
-        for (let name in data) {
-            let value = data[name]
-            let col = params.indexOf(name) + 1
+  stmt.close()
+  stmt = null
 
-            switch (value.constructor.name) {
-                case "String":
-                    stmt.setString(col, value)
-                    break
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
 
-                case "Number":
-                    if (Math.floor(value) === value) {
-                        stmt.setInt(col, value)
-                    } else {
-                        stmt.setFloat(col, value)
-                    }
-                    break
+  return {
+    error: false,
+    keys: rows
+  }
+}
 
-                default:
-                    stmt.setObject(col, value)
-                    break
-            }
+function sqlSelect (ds, sql, data) {
+  let cnx, stmt, rs, result
 
-            col++
+  if (hasSqlInject(sql)) {
+    return sqlInjectionError
+  }
+
+  cnx = this.connection || getConnection(ds)
+  stmt = prepareStatement(cnx, sql, data)
+
+  this.logFunction('execute', 'executeQuery', sql)
+  rs = stmt.executeQuery()
+
+  result = fetchRows(rs)
+
+  stmt.close()
+  stmt = null
+
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
+
+  return result
+}
+
+function sqlExecute (ds, sql, data, returnGeneratedKeys) {
+  let cnx, stmt, result
+  let sqlSelectCtx = sqlSelect.bind(this, ds)
+  let sqlInsertCtx = sqlInsert.bind(this, ds)
+
+  if (hasSqlInject(sql)) {
+    return sqlInjectionError
+  }
+
+  if (sql.substring(0, 6).toUpperCase() === 'SELECT') {
+    return sqlSelectCtx(sql, data)
+  } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
+    return sqlInsertCtx(sql, data, returnGeneratedKeys)
+  }
+
+  cnx = this.connection || getConnection(ds)
+  // stmt = cnx.prepareStatement(sql.trim())
+  stmt = prepareStatement(cnx, sql.trim(), data)
+  this.logFunction('execute', 'executeUpdate', sql)
+  result = stmt.executeUpdate()
+
+  stmt.close()
+  stmt = null
+
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
+
+  return {
+    error: false,
+    affectedRows: result
+  }
+}
+
+function fetchRows (rs) {
+  let rsmd = rs.getMetaData()
+  let numColumns = rsmd.getColumnCount()
+  let columns = []
+  let types = []
+  let rows = []
+
+  for (let cl = 1; cl < numColumns + 1; cl++) {
+    // columns[cl] = rsmd.getColumnLabel(cl)
+    columns[cl] = rsmd.getColumnName(cl)
+    types[cl] = rsmd.getColumnType(cl)
+  }
+
+  while (rs.next()) {
+    let row = {}
+
+    for (let nc = 1; nc < numColumns + 1; nc++) {
+      let value
+
+      if (types[nc] === Types.BINARY) {
+        value = rs.getBytes(nc)
+      } else {
+        value = rs.getObject(nc)
+      }
+
+      if (rs.wasNull()) {
+        row[columns[nc]] = null
+      } else if ([91, 92, 93].indexOf(types[nc]) >= 0) {
+        row[columns[nc]] = value.toString()
+      } else if (types[nc] === Types.OTHER) { // json in PostgreSQL
+        try {
+          row[columns[nc]] = JSON.parse(value)
+        } catch (error) {
+          row[columns[nc]] = value
         }
+      } else {
+        row[columns[nc]] = value
+      }
     }
 
-    this.logFunction("execute", "executeQuery", sql)
-    rs = stmt.executeQuery()
+    rows.push(row)
+  }
 
-    result = fetchRows(rs)
-
-    stmt.close()
-    stmt = null
-
-    if (!this.connection) {
-        cnx.close()
-        cnx = null
-    }
-
-    return result
+  return rows
 }
-
-
-function sqlExecute(ds, sql, dataOrReturnGeneratedKeys) {
-    let cnx, stmt, result
-    let sql_select = sqlSelect.bind(this, ds)
-    let sql_insert = sqlInsert.bind(this, ds)
-
-    if (hasSqlInject(sql)) {
-        return sqlInjectionError
-    }
-
-    if (sql.substring(0,6).toUpperCase() === "SELECT") {
-        return sql_select(sql, dataOrReturnGeneratedKeys)
-    } else if (sql.substring(0,6).toUpperCase() === "INSERT") {
-        return sql_insert(sql, dataOrReturnGeneratedKeys)
-    }
-
-    cnx = this.connection || getConnection(ds)
-    stmt = cnx.prepareStatement(sql.trim())
-    this.logFunction("execute", "executeUpdate", sql)
-    result = stmt.executeUpdate()
-
-    stmt.close()
-    stmt = null
-
-    if (!this.connection) {
-        cnx.close()
-        cnx = null
-    }
-
-    return {
-        error: false,
-        affectedRows: result
-    }
-}
-
-
-function fetchRows(rs) {
-    let rsmd = rs.getMetaData()
-    let numColumns = rsmd.getColumnCount()
-    let columns = []
-    let types = []
-    let rows = []
-
-    for (let cl = 1; cl < numColumns + 1; cl++) {
-        columns[cl] = rsmd.getColumnLabel(cl)
-        types[cl] = rsmd.getColumnType(cl)
-    }
-
-    while (rs.next()) {
-        let row = {}
-
-        for (let nc = 1; nc < numColumns + 1; nc++) {
-            let value
-
-            if (types[nc] === java.sql.Types.BINARY) {
-                value = rs.getBytes(nc)
-            } else {
-                value = rs.getObject(nc)
-            }
-
-            if (rs.wasNull()) {
-                row[columns[nc]] = null
-            } else if ([91, 92, 93].indexOf(types[nc]) >= 0) {
-                row[columns[nc]] = value.toString()
-            } else if (types[nc] == java.sql.Types.OTHER) { // json in PostgreSQL
-                try {
-                    row[columns[nc]] = JSON.parse(value)
-                } catch(error) {
-                    row[columns[nc]] = value
-                }
-            } else {
-                row[columns[nc]] = value
-            }
-        }
-
-        rows.push(row)
-    }
-
-    return rows
-}
-
 
 /**
  * Insere um ou mais objetos na tabela.
@@ -314,81 +319,80 @@ function fetchRows(rs) {
  * ou objeto único a ser inserido.
  * @return {Array} Retorna um Array com os ID's (chaves) dos itens inseridos.
  */
-function tableInsert(ds, table, itens) {
-    let logFunction = this.logFunction
-    let sdel = this.stringDelimiter
-    let cnx = this.connection || getConnection(ds)
-    let keys = []
-    let stmt
-    let affected
+function tableInsert (ds, table, itens) {
+  let logFunction = this.logFunction
+  let sdel = this.stringDelimiter
+  let cnx = this.connection || getConnection(ds)
+  let keys = []
+  let stmt
+  let affected
 
-    function buildSqlCommand(reg) {
-        let vrg = ""
-        let cols = ""
-        let values = ""
-        let value
+  function buildSqlCommand (reg) {
+    let vrg = ''
+    let cols = ''
+    let values = ''
+    let value
 
-        for (let key in reg) {
-            val = reg[key]
-            cols += vrg + key
-            values += (val.constructor.name === "Number")
-                ? (vrg + val)
-                : (vrg + sdel + val + sdel)
+    for (let key in reg) {
+      value = reg[key]
+      cols += vrg + '"' + key + '"'
+      values += (value.constructor.name === 'Number')
+        ? (vrg + value)
+        : (vrg + sdel + value + sdel)
 
-            vrg = ","
-        }
-
-        // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
-        return "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") "
+      vrg = ','
     }
 
-    if (itens.constructor.name == "Array") {
-        stmt = cnx.createStatement()
+    // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
+    return 'INSERT INTO "' + table + '" (' + cols + ') ' + 'VALUES (' + values + ') '
+  }
 
-        itens.forEach(function (reg, idx) {
-            let sql = buildSqlCommand(reg)
+  if (itens.constructor.name === 'Array') {
+    stmt = cnx.createStatement()
 
-            if (hasSqlInject(sql)) {
-                return sqlInjectionError
-            }
+    itens.forEach(function (reg, idx) {
+      let sql = buildSqlCommand(reg)
 
-            logFunction("insert", "addBatch", sql)
-            stmt.addBatch(sql)
-        })
+      if (hasSqlInject(sql)) {
+        return sqlInjectionError
+      }
 
-        logFunction("insert", "executeBatch", "")
-        affected = stmt.executeBatch()
-    } else {
-        let sql = buildSqlCommand(itens)
+      logFunction('insert', 'addBatch', sql)
+      stmt.addBatch(sql)
+    })
 
-        if (hasSqlInject(sql)) {
-            return sqlInjectionError
-        }
+    logFunction('insert', 'executeBatch', '')
+    affected = stmt.executeBatch()
+  } else {
+    let sql = buildSqlCommand(itens)
 
-        stmt = cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-        logFunction("insert", "executeUpdate", sql)
-        affected = stmt.executeUpdate()
+    if (hasSqlInject(sql)) {
+      return sqlInjectionError
     }
 
-    let rsKeys = stmt.getGeneratedKeys()
+    stmt = cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+    logFunction('insert', 'executeUpdate', sql)
+    affected = stmt.executeUpdate()
+  }
 
-    while (rsKeys.next()) {
-        keys.push(rsKeys.getObject(1))
-    }
+  let rsKeys = stmt.getGeneratedKeys()
 
-    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-    if (!this.connection) {
-        cnx.close()
-        conn = null
-    }
+  while (rsKeys.next()) {
+    keys.push(rsKeys.getObject(1))
+  }
 
-    return {
-        error: false,
-        keys: keys,
-        affectedRows: affected
-    }
+  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
+
+  return {
+    error: false,
+    keys: keys,
+    affectedRows: affected
+  }
 }
-
 
 /**
  * Atualiza um ou mais dados da tabela no banco.
@@ -398,60 +402,59 @@ function tableInsert(ds, table, itens) {
  * @returns {Object} Objeto que informa o status da execução do comando e a quantidade de
  * linhas afetadas.
  */
-function tableUpdate(ds, table, row, whereCondition) {
-    let sdel = this.stringDelimiter
-    let values = ""
-    let where = ""
-    let vrg = ""
-    let and = ""
+function tableUpdate (ds, table, row, whereCondition) {
+  let sdel = this.stringDelimiter
+  let values = ''
+  let where = ''
+  let vrg = ''
+  let and = ''
 
-    for (let col in row) {
-        let val = row[col]
+  for (let col in row) {
+    let val = row[col]
 
-        values += vrg + col + " = "
-        values += (val.constructor.name === "Number")
-            ? val
-            : (sdel + val + sdel)
+    values += vrg + '"' + col + '"' + ' = '
+    values += (val.constructor.name === 'Number')
+      ? val
+      : (sdel + val + sdel)
 
-        vrg = ", "
+    vrg = ', '
+  }
+
+  if (whereCondition) {
+    for (let wkey in whereCondition) {
+      let val = whereCondition[wkey]
+
+      where += and + '"' + wkey + '"' + ' = '
+      where += (val.constructor.name === 'Number')
+        ? val
+        : (sdel + val + sdel)
+
+      and = ' AND '
     }
+  }
 
-    if (whereCondition) {
-        for (let wkey in whereCondition) {
-            let val = whereCondition[wkey]
+  let sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
-            where += and + wkey + " = "
-            where += (val.constructor.name === "Number")
-                ? val
-                : (sdel + val + sdel)
+  if (hasSqlInject(sql)) {
+    return sqlInjectionError
+  }
 
-            and = " AND "
-        }
-    }
+  let cnx = this.connection || getConnection(ds)
+  let stmt = cnx.prepareStatement(sql)
+  this.logFunction('update', 'executeUpdate', sql)
+  let result = stmt.executeUpdate()
 
-    let sql = "UPDATE " + table + " SET " + values + ((whereCondition) ? " WHERE " + where : "")
+  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
 
-    if (hasSqlInject(sql)) {
-        return sqlInjectionError
-    }
-
-    let cnx = this.connection || getConnection(ds)
-    let stmt = cnx.prepareStatement(sql)
-    this.logFunction("update", "executeUpdate", sql)
-    let result = stmt.executeUpdate()
-
-    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-    if (!this.connection) {
-        cnx.close()
-        conn = null
-    }
-
-    return {
-        error: false,
-        affectedRows: result
-    }
+  return {
+    error: false,
+    affectedRows: result
+  }
 }
-
 
 /**
  * apaga um ou mais dados da tabela no banco.
@@ -460,50 +463,48 @@ function tableUpdate(ds, table, row, whereCondition) {
  * @returns {Object} Objeto que informa o status da execução do comando e a quantidade de
  * linhas afetadas.
  */
-function tableDelete(ds, table, whereCondition) {
-    let sdel = this.stringDelimiter
-    let where = ""
-    let vrg = ""
-    let and = ""
-    let result
+function tableDelete (ds, table, whereCondition) {
+  let sdel = this.stringDelimiter
+  let where = ''
+  let and = ''
+  let result
 
-    if (whereCondition) {
-        for (let wkey in whereCondition) {
-            let val = whereCondition[wkey]
+  if (whereCondition) {
+    for (let wkey in whereCondition) {
+      let val = whereCondition[wkey]
 
-            where += and + wkey + " = "
-            where += (val.constructor.name === "Number")
-                ? val
-                : (sdel + val + sdel)
+      where += and + '"' + wkey + '"' + ' = '
+      where += (val.constructor.name === 'Number')
+        ? val
+        : (sdel + val + sdel)
 
-            and = " AND "
-        }
+      and = ' AND '
     }
+  }
 
-    let sql = "DELETE FROM " + table + ((whereCondition) ? " WHERE " + where : "")
+  let sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
 
-    if (hasSqlInject(sql)) {
-        return sqlInjectionError
-    }
+  if (hasSqlInject(sql)) {
+    return sqlInjectionError
+  }
 
-    let cnx = this.connection || getConnection(ds)
-    let stmt = cnx.prepareStatement(sql)
+  let cnx = this.connection || getConnection(ds)
+  let stmt = cnx.prepareStatement(sql)
 
-    this.logFunction("delete", "executeUpdate", sql)
-    result = stmt.executeUpdate()
+  this.logFunction('delete', 'executeUpdate', sql)
+  result = stmt.executeUpdate()
 
-    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-    if (!this.connection) {
-        cnx.close()
-        conn = null
-    }
+  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+  if (!this.connection) {
+    cnx.close()
+    cnx = null
+  }
 
-    return {
-        error: false,
-        affectedRows: result
-    }
+  return {
+    error: false,
+    affectedRows: result
+  }
 }
-
 
 /**
  * Executa uma função dentro de uma única transação.
@@ -512,68 +513,56 @@ function tableDelete(ds, table, whereCondition) {
  * @param {Object} context - um objeto que será passado como segundo parâmetro da função *fncScript*.
  * @returns {Object}
  */
-function executeInSingleTransaction(ds, fncScript, context) {
-    let rs
-    let cnx = getConnection(ds)
-    let ctx = {
-        connection: cnx
+function executeInSingleTransaction (ds, fncScript, context) {
+  let rs
+  let cnx = getConnection(ds)
+  let ctx = {
+    connection: cnx,
+    stringDelimiter: this.stringDelimiter || "'",
+    logFunction: this.logFunction
+  }
+
+  try {
+    cnx.setAutoCommit(false)
+
+    rs = {
+      error: false,
+
+      result: fncScript({
+        'getInfoColumns': getInfoColumns.bind(ctx, ds),
+        'insert': tableInsert.bind(ctx, ds),
+        'select': sqlSelect.bind(ctx, ds),
+        'update': tableUpdate.bind(ctx, ds),
+        'delete': tableDelete.bind(ctx, ds),
+        'execute': sqlExecute.bind(ctx, ds)
+      }, context)
     }
 
-    var update = function (table, row, where) {
-        return db.update(table, row, where, connection)
+    cnx.commit()
+  } catch (ex) {
+    rs = {
+      error: true,
+      execption: ex
     }
 
-    var deleteFnc = function (table, row) {
-        return db["delete"](table, row, connection)
-    }
+    cnx.rollback()
+  } finally {
+    cnx.close()
+    cnx = null
+  }
 
-    var deleteByExample = function (table, row) {
-        return db.deleteByExample(table, row, connection)
-    }
-
-    try {
-        cnx.setAutoCommit(false)
-
-        rs = {
-            error: false,
-
-            result: fncScript({
-                "execute": sqlExecute.bind(ctx, ds),
-                "insert": tableInsert.bind(ctx, ds),
-                "delete": sqlExecute.bind(ctx, ds),
-                "update": sqlExecute.bind(ctx, ds)/* ,
-                deleteByExample: deleteByExample */
-            }, context)
-        }
-
-        cnx.commit()
-    } catch (ex) {
-        // print("Exception => ", ex)
-        cnx.rollback()
-
-        rs = {
-            error: true,
-            execption: ex
-        }
-    } finally {
-        cnx.close()
-        cnx = null
-    }
-
-    return rs
+  return rs
 }
-
 
 /**
  * @param {FileInputStream} fis
  * @param {int} size
  */
-function Blob(fis, size) {
-    this.fis = fis
-    this.size = size
+function Blob (fis, size) {
+  this.fis = fis
+  this.size = size
 }
 
-
 exports = {
-    createDbInstance: createDbInstance
+  createDbInstance: createDbInstance
 }
