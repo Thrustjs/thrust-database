@@ -1,11 +1,11 @@
 Database
 ===============
 
-Database é um *bitcode* de acesso a dados em Bando de Dados Relacional (SQL DB) para [ThrustJS](https://github.com/thrustjs/thrust).
+Database é um *bitcode* de acesso a dados em Bando de Dados Relacional (SQL DB) para [thrust](https://github.com/thrustjs/thrust).
 
 # Instalação
 
-Posicionado em um app [ThrustJS](https://github.com/thrustjs/thrust), no seu terminal:
+Posicionado em um app [thrust](https://github.com/thrustjs/thrust), no seu terminal:
 
 ```bash
 thrust install database
@@ -67,7 +67,7 @@ Agora ficou fácil. É só utilizar os métodos de acesso à dados para construi
 
 ```
 ## Parâmetros de configuração
-As propriedades abaixo devem ser configuradas no arquivo *config.json* (distribuído juntamente com o ThrustJS):
+As propriedades abaixo devem ser configuradas no arquivo *config.json*:
 
 ``` javascript
 {
