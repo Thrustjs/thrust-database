@@ -5,7 +5,6 @@
  *
  */
 
-/** @ignore */
 let Types = Java.type('java.sql.Types')
 let Statement = Java.type('java.sql.Statement')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
