@@ -1,7 +1,7 @@
 /**
  * @author Nery Jr
  */
-let rdbms = 'h2'
+let rdbms = 'sqlite'
 let cfgDatabase = getBitcodeConfig('database')()
 let dbConfig = cfgDatabase[rdbms]
 let sqls = {
@@ -129,7 +129,7 @@ function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
       })
 
       it('Executando comando SELECT table', function () {
-        db.execute('INSERT INTO "ttest" ("num", "txt") values (1, \'Num Um\'), ' + 
+        db.execute('INSERT INTO "ttest" ("num", "txt") values (1, \'Num Um\'), ' +
                     ' (2, \'Num Dois\'), (3, \'Num Três\'), (4, \'Num Quatro\'), (5, \'Num Cinco\')')
 
         rs = db.execute('SELECT * FROM "ttest"')
@@ -230,41 +230,40 @@ function exec (describe, it, beforeEach, afterEach, expect, should, assert) {
       })
     })
 
-    /*
-            describe("API de execução de commandos SQL em uma única transação [executeInSingleTransaction].", function () {
+    describe('API [executeInSingleTransaction] -  execução de commandos SQL em uma única transação', function () {
+      it('Executando sequência de comandos SQL em um cenário de NÃO problemas ou erro (commit) ', function () {
 
-                it("Executando sequência de comandos SQL em um cenário de NÃO problemas ou erro (commit) ", function() {
-                    var cmd = "INSERT INTO ttest (num, txt) values (6, 'Num Seis'), "
-                        + " (7, 'Num Sete'), (8, 'Num Oito'), (9, 'Num Nove')"
+        rs = db.executeInSingleTransaction(function (db, context) {
+          let cmd = 'INSERT INTO "ttest" ("num", "txt") values (6, \'Num Seis\'), ' +
+            " (7, 'Num Sete'), (8, 'Num Oito'), (9, 'Num Nove')"
 
-                    rs = db.executeInSingleTransaction(function(db, context) {
-                        db.execute(cmd)
-                        db.execute("UPDATE ttest SET num=" + context.num + ", txt = '" + context.txt + "' WHERE num=9")
-                    }, {num: 99, txt: "Num Noventa e Nove"})
+          db.execute(cmd)
+          db.execute('UPDATE "ttest" SET "num" = :num, "txt" = :txt WHERE "num"=9', context)
+        }, {num: 99, txt: 'Num Noventa e Nove'})
 
-                    expect(rs.error).to.equal(false)
-                    expect((rs = db.execute("SELECT COUNT(*) as count FROM ttest WHERE num=99")).length).to.equal(1)
-                    expect(rs[0].count).to.equal(1)
-                })
+        // show(db.execute('SELECT * FROM "ttest"'))
 
-                it("Executando transação (sequência de comandos SQL) em um cenário COM problemas ou erro (rollback) ", function() {
-                    // testando exeções e rollback
-                    rs = db.executeInSingleTransaction(function(db, context) {
-                        rs = db.execute("UPDATE ttest SET num=" + context.num + ", txt = '" + context.txt + "' WHERE num=99")
+        expect(rs.error).to.equal(false)
+        expect(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99').length).to.equal(1)
+        expect(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99')[0].count).to.equal(1)
+      })
 
-                        if (true)
-                            throw {error: true}
+      it('Executando transação (sequência de comandos SQL) em um cenário COM problemas ou erro (rollback) ', function () {
+        // testando exeções e rollback
+        rs = db.executeInSingleTransaction(function (db, context) {
+          rs = db.execute('UPDATE "ttest" SET "num"=' + context.num + ', "txt" = \'' + context.txt + '\' WHERE "num"=99')
 
-                        rs = db.execute("DELETE FROM ttest")
+          if (true)
+            throw {error: true}
 
-                    }, {num: 999, txt: "Num Novecenetos e Noventa e Nove"})
+          rs = db.execute('DELETE FROM "ttest"')
+        }, {num: 999, txt: 'Num Novecenetos e Noventa e Nove'})
 
-                    expect(rs.error).to.equal(true)
-                    expect((rs = db.execute("SELECT COUNT(*) as count FROM ttest WHERE num=99")).length).to.equal(1)
-                    expect(rs[0].count).to.equal(1)
-                })
-            })
-    */
+        expect(rs.error).to.equal(true)
+        expect((rs = db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99')).length).to.equal(1)
+        expect(rs[0].count).to.equal(1)
+      })
+    })
   })
 }
 
@@ -275,9 +274,9 @@ print('', res.failure.length, ' scenarios executed with failure.\n')
 
 res.failure.forEach(function (fail) {
   print('[' + fail.scenario + '] =>', fail.execption)
-  // if (fail.execption.printStackTrace) {
-  //   fail.execption.printStackTrace()
-  // }
+//   if (fail.execption.printStackTrace) {
+//     fail.execption.printStackTrace()
+//   }
 })
 
 // java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001");
