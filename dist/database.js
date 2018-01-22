@@ -94,11 +94,18 @@ function createDataSource (options) {
   ds.setDriverClassName(cfg.driverClassName)
   ds.setUrl(cfg.urlConnection)
   ds.setUsername(cfg.userName)
-  ds.setPassword(cfg.password)
   ds.setInitialSize(cfg.initialSize)
   ds.setMaxActive(cfg.maxActive)
   ds.setMaxIdle(cfg.maxIdle)
   ds.setMinIdle(cfg.minIdle)
+
+  if (!cfg.decryptClassName) {
+    ds.setPassword(cfg.password)
+  } else {
+    let DecryptClass = Java.type(cfg.decryptClassName)
+    let descryptInstance = new DecryptClass()
+    ds.setPassword(descryptInstance.decrypt(cfg.password))
+  }
 
   config.dsm[urlConnection] = ds
 
