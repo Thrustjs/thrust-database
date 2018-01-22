@@ -133,9 +133,44 @@ function hasSqlInject (sql) {
   return (testSqlInject != null)
 }
 
+function processNamedParameters (sql) {
+  var literals = {}
+  var id = 0
+  var key
+
+  sql = sql.replace(/(\'.*?\')/g, function (match) {
+    key = '${' + (id++) + '}'
+    literals[key] = match
+    return key
+  })
+
+  var params = []
+
+  sql = sql.replace(/(:\w+)/g, function (match) {
+    params.push(match.substring(1))
+    return '?'
+  })
+
+  sql = sql.replace(/(\$\{\d+\})/g, function (match) {
+    return literals[match]
+  })
+
+  return {
+    sql: sql,
+    params: params
+  }
+}
+
 function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
   let stmt
-  let params = sql.match(/:\w+/g)
+  let params
+
+  if (data) {
+    var result = processNamedParameters(sql)
+
+    sql = result.sql
+    params = result.params
+  }
 
   sql = sql.replace(/(:\w+)/g, '?')
   stmt = (returnGeneratedKeys)
@@ -143,12 +178,17 @@ function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
     : cnx.prepareStatement(sql)
 
   if (params && data && data.constructor.name === 'Object') {
-    params = params.map(function (param) {
-      return param.slice(1)
-    })
-    for (let name in data) {
+    for (let index in params) {
+      index = Number(index)
+
+      let name = params[index]
+
+      if (!data.hasOwnProperty(name)) {
+        throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
+      }
+
       let value = data[name]
-      let col = params.indexOf(name) + 1
+      let col = index + 1
 
       switch (value.constructor.name) {
         case 'String':
@@ -164,23 +204,21 @@ function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
           break
 
         case 'Boolean':
-          stmt.setBoolean(index, value)
+          stmt.setBoolean(col, value)
           break
 
         case 'Date':
-          stmt.setTimestamp(index, new java.sql.Timestamp(value.getTime()))
+          stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
           break
 
         case 'Blob':
-          stmt.setBinaryStream(index, value.fis, value.size)
+          stmt.setBinaryStream(col, value.fis, value.size)
           break
 
         default:
           stmt.setObject(col, value)
           break
       }
-
-      col++
     }
   }
 
