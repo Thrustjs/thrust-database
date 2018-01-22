@@ -137,7 +137,7 @@ function processNamedParameters(sql) {
   var params = []
 
   sql = sql.replace(/(?:[^\w:])(:\w+)/g, function (match) {
-    params.push(match.substring(1))
+    params.push(match.trim().substring(1))
     return '?'
   })
 
