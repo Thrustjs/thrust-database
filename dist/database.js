@@ -7,7 +7,7 @@
 
 let Types = Java.type('java.sql.Types')
 let Statement = Java.type('java.sql.Statement')
-var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
+let DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
 let config = getConfig()
 
@@ -102,8 +102,8 @@ function createDataSource(options) {
   if (!cfg.decryptClassName) {
     ds.setPassword(cfg.password)
   } else {
-    var DecryptClass = Java.type(cfg.decryptClassName)
-    var descryptInstance = new DecryptClass()
+    let DecryptClass = Java.type(cfg.decryptClassName)
+    let descryptInstance = new DecryptClass()
     ds.setPassword(descryptInstance.decrypt(cfg.password))
   }
 
@@ -128,7 +128,7 @@ function getConnection(ds, autoCommit) {
 }
 
 function hasSqlInject(sql) {
-  var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
+  let testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
   return (testSqlInject != null)
 }
@@ -138,27 +138,27 @@ function processNamedParameters(sql) {
   let id = 0;
   let key;
 
-	sql = sql.replace(/(\'.*?\')/g, function(match) {
-		key = '${' + (id++) + '}';
-		literals[key] = match;
-		return key;
-	});
+  sql = sql.replace(/(\'.*?\')/g, function (match) {
+    key = '${' + (id++) + '}';
+    literals[key] = match;
+    return key;
+  });
 
-	let params = [];
+  let params = [];
 
-	sql = sql.replace(/(:\w+)/g, function(match){
+  sql = sql.replace(/(:\w+)/g, function (match) {
     params.push(match.substring(1))
     return '?'
   })
 
-	sql = sql.replace(/(\$\{\d+\})/g, function(match) {
-		return literals[match];
-	});
+  sql = sql.replace(/(\$\{\d+\})/g, function (match) {
+    return literals[match];
+  });
 
-	return {
-		sql: sql,
-		params: params
-	}
+  return {
+    sql: sql,
+    params: params
+  }
 }
 
 function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
@@ -185,31 +185,7 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
       let value = data[param]
       let col = index + 1
 
-      if (value === undefined || value === null) {
-        stmt.setObject(col, null)
-      } else {
-        switch (value.constructor.name) {
-          case 'String':
-            stmt.setString(col, value)
-            break
-
-          case 'Boolean':
-            stmt.setBoolean(col, value)
-            break
-
-          case 'Number':
-            if (Math.floor(value) === value) {
-              stmt.setLong(col, value)
-            } else {
-              stmt.setDouble(col, value)
-            }
-            break
-
-          default:
-            stmt.setObject(col, value)
-            break
-        }
-      }
+      bindParameterOnStatement(stmt, col, value)
     })
   }
 
@@ -312,6 +288,42 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
   }
 }
 
+function bindParameterOnStatement (stmt, index, value) {
+  if (value === undefined || value === null) {
+    stmt.setObject(index, null)
+  } else {
+    switch (value.constructor.name) {
+      case 'String':
+        stmt.setString(index, value)
+        break
+
+      case 'Boolean':
+        stmt.setBoolean(index, value)
+        break
+
+      case 'Number':
+        if (Math.floor(value) === value) {
+          stmt.setLong(index, value)
+        } else {
+          stmt.setDouble(index, value)
+        }
+        break
+
+      case 'Date':
+        stmt.setTimestamp(index, new java.sql.Timestamp(value.getTime()))
+        break
+
+      case 'Blob':
+      stmt.setBinaryStream(index, value.fis, value.size)
+        break
+
+      default:
+        stmt.setObject(index, value)
+        break
+    }
+  }
+}
+
 function fetchRows(rs) {
   let rsmd = rs.getMetaData()
   let numColumns = rsmd.getColumnCount()
@@ -367,13 +379,13 @@ function fetchRows(rs) {
  */
 function tableInsert(ds, table, itens) {
   let logFunction = this.logFunction
-  let sdel = this.stringDelimiter
   let cnx = this.connection || getConnection(ds)
   let keys = []
   let stmt
   let affected
+  let sql
 
-  function buildSqlCommand(reg) {
+  function buildSqlCommand (reg) {
     let vrg = ''
     let cols = ''
     let values = ''
@@ -382,41 +394,57 @@ function tableInsert(ds, table, itens) {
     for (let key in reg) {
       value = reg[key]
       cols += vrg + '"' + key + '"'
-      values += (value.constructor.name === 'Number')
-        ? (vrg + value)
-        : (vrg + sdel + value + sdel)
+      values += (vrg + '?')
 
       vrg = ','
     }
 
     // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
-    return 'INSERT INTO "' + table + '" (' + cols + ') ' + 'VALUES (' + values + ') '
+    return 'INSERT INTO "' + table + '" (' + cols + ') ' + 'VALUES (' + values + ')'
   }
 
   if (itens.constructor.name === 'Array') {
-    stmt = cnx.createStatement()
+    let values = []
 
-    itens.forEach(function (reg, idx) {
-      let sql = buildSqlCommand(reg)
-
-      if (hasSqlInject(sql)) {
-        return sqlInjectionError
+    itens.forEach(function (tupla, idx) {
+      if (idx === 0) {
+        sql = buildSqlCommand(tupla)
       }
 
+      let props = []
+
+      for (let key in tupla) {
+        props.push(tupla[key])
+      }
+
+      values.push(props)
+    })
+
+    stmt = cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+
+    values.forEach(function (tuple) {
+      tuple.forEach(function (value, colIndex) {
+        bindParameterOnStatement(stmt, colIndex + 1, value)
+      })
+
       logFunction('insert', 'addBatch', sql)
-      stmt.addBatch(sql)
+      stmt.addBatch()
     })
 
     logFunction('insert', 'executeBatch', '')
     affected = stmt.executeBatch()
   } else {
-    let sql = buildSqlCommand(itens)
+    let item = itens
 
-    if (hasSqlInject(sql)) {
-      return sqlInjectionError
-    }
+    sql = buildSqlCommand(item)
 
     stmt = cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+
+    let colIndex = 1
+    for (let key in item) {
+      bindParameterOnStatement(stmt, colIndex++, item[key])
+    }
+
     logFunction('insert', 'executeUpdate', sql)
     affected = stmt.executeUpdate()
   }
@@ -449,44 +477,43 @@ function tableInsert(ds, table, itens) {
  * linhas afetadas.
  */
 function tableUpdate(ds, table, row, whereCondition) {
-  let sdel = this.stringDelimiter
   let values = ''
   let where = ''
   let vrg = ''
   let and = ''
 
   for (let col in row) {
-    let val = row[col]
-
-    values += vrg + '"' + col + '"' + ' = '
-    values += (val.constructor.name === 'Number')
-      ? val
-      : (sdel + val + sdel)
-
+    values += vrg + '"' + col + '"' + ' = ?'
     vrg = ', '
   }
 
   if (whereCondition) {
     for (let wkey in whereCondition) {
-      let val = whereCondition[wkey]
-
-      where += and + '"' + wkey + '"' + ' = '
-      where += (val.constructor.name === 'Number')
-        ? val
-        : (sdel + val + sdel)
-
+      where += and + '"' + wkey + '"' + ' = ?'
       and = ' AND '
     }
   }
 
   let sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
-  if (hasSqlInject(sql)) {
+  if (whereCondition && hasSqlInject(where)) {
     return sqlInjectionError
   }
 
   let cnx = this.connection || getConnection(ds)
   let stmt = cnx.prepareStatement(sql)
+
+  let colIndex = 1
+  for (let key in row) {
+    bindParameterOnStatement(stmt, colIndex++, row[key])
+  }
+
+  if (whereCondition) {
+    for (let wkey in whereCondition) {
+      bindParameterOnStatement(stmt, colIndex++, whereCondition[wkey])
+    }
+  }
+
   this.logFunction('update', 'executeUpdate', sql)
   let result = stmt.executeUpdate()
 
@@ -510,20 +537,13 @@ function tableUpdate(ds, table, row, whereCondition) {
  * linhas afetadas.
  */
 function tableDelete(ds, table, whereCondition) {
-  let sdel = this.stringDelimiter
   let where = ''
   let and = ''
   let result
 
   if (whereCondition) {
     for (let wkey in whereCondition) {
-      let val = whereCondition[wkey]
-
-      where += and + '"' + wkey + '"' + ' = '
-      where += (val.constructor.name === 'Number')
-        ? val
-        : (sdel + val + sdel)
-
+      where += and + '"' + wkey + '"' + ' = ?'
       and = ' AND '
     }
   }
@@ -536,6 +556,14 @@ function tableDelete(ds, table, whereCondition) {
 
   let cnx = this.connection || getConnection(ds)
   let stmt = cnx.prepareStatement(sql)
+
+  if (whereCondition) {
+    let colIndex = 1
+
+    for (let wkey in whereCondition) {
+      bindParameterOnStatement(stmt, colIndex++, whereCondition[wkey])
+    }
+  }
 
   this.logFunction('delete', 'executeUpdate', sql)
   result = stmt.executeUpdate()
