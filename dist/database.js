@@ -163,6 +163,18 @@ function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
           }
           break
 
+        case 'Boolean':
+          stmt.setBoolean(index, value)
+          break
+
+        case 'Date':
+          stmt.setTimestamp(index, new java.sql.Timestamp(value.getTime()))
+          break
+
+        case 'Blob':
+          stmt.setBinaryStream(index, value.fis, value.size)
+          break
+
         default:
           stmt.setObject(col, value)
           break
