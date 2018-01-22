@@ -18,7 +18,7 @@ const sqlInjectionError = {
   message: 'Attempt sql injection!'
 }
 
-function createDbInstance (options) {
+function createDbInstance(options) {
   options.logFunction = options.logFunction || function (dbFunctionName, statementMethodName, sql) { }
 
   let ds = createDataSource(options)
@@ -44,7 +44,7 @@ function createDbInstance (options) {
   }
 }
 
-function getInfoColumns (ds, table) {
+function getInfoColumns(ds, table) {
   let cnx = getConnection(ds)
   let databaseMetaData = cnx.getMetaData()
   let infosCols = databaseMetaData.getColumns(null, null, table, null)
@@ -72,7 +72,7 @@ function getInfoColumns (ds, table) {
   return cols
 }
 
-function createDataSource (options) {
+function createDataSource(options) {
   let urlConnection = options.urlConnection
 
   if (config.dsm[urlConnection]) {
@@ -119,7 +119,7 @@ function createDataSource (options) {
  * a cada execução de uma commando SQL.
  * @returns {Connection}
  */
-function getConnection (ds, autoCommit) {
+function getConnection(ds, autoCommit) {
   let connection = ds.getConnection()
 
   connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
@@ -127,13 +127,13 @@ function getConnection (ds, autoCommit) {
   return connection
 }
 
-function hasSqlInject (sql) {
+function hasSqlInject(sql) {
   var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
   return (testSqlInject != null)
 }
 
-function processNamedParameters (sql) {
+function processNamedParameters(sql) {
   var literals = {}
   var id = 0
   var key
@@ -161,7 +161,7 @@ function processNamedParameters (sql) {
   }
 }
 
-function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
+function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
   let stmt
   let params
 
@@ -190,34 +190,38 @@ function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
       let value = data[name]
       let col = index + 1
 
-      switch (value.constructor.name) {
-        case 'String':
-          stmt.setString(col, value)
-          break
+      if (value === undefined || value === null) {
+        stmt.setObject(col, null)
+      } else {
+        switch (value.constructor.name) {
+          case 'String':
+            stmt.setString(col, value)
+            break
 
-        case 'Number':
-          if (Math.floor(value) === value) {
-            stmt.setLong(col, value)
-          } else {
-            stmt.setDouble(col, value)
-          }
-          break
+          case 'Number':
+            if (Math.floor(value) === value) {
+              stmt.setLong(col, value)
+            } else {
+              stmt.setDouble(col, value)
+            }
+            break
 
-        case 'Boolean':
-          stmt.setBoolean(col, value)
-          break
+          case 'Boolean':
+            stmt.setBoolean(col, value)
+            break
 
-        case 'Date':
-          stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
-          break
+          case 'Date':
+            stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
+            break
 
-        case 'Blob':
-          stmt.setBinaryStream(col, value.fis, value.size)
-          break
+          case 'Blob':
+            stmt.setBinaryStream(col, value.fis, value.size)
+            break
 
-        default:
-          stmt.setObject(col, value)
-          break
+          default:
+            stmt.setObject(col, value)
+            break
+        }
       }
     }
   }
@@ -225,7 +229,7 @@ function prepareStatement (cnx, sql, data, returnGeneratedKeys) {
   return stmt
 }
 
-function sqlInsert (ds, sql, data, returnGeneratedKeys) {
+function sqlInsert(ds, sql, data, returnGeneratedKeys) {
   let cnx, stmt, rsk, rows
 
   if (hasSqlInject(sql)) {
@@ -260,7 +264,7 @@ function sqlInsert (ds, sql, data, returnGeneratedKeys) {
   }
 }
 
-function sqlSelect (ds, sql, data) {
+function sqlSelect(ds, sql, data) {
   let cnx, stmt, rs, result
 
   if (hasSqlInject(sql)) {
@@ -286,7 +290,7 @@ function sqlSelect (ds, sql, data) {
   return result
 }
 
-function sqlExecute (ds, sql, data, returnGeneratedKeys) {
+function sqlExecute(ds, sql, data, returnGeneratedKeys) {
   let cnx, stmt, result
   let sqlSelectCtx = sqlSelect.bind(this, ds)
   let sqlInsertCtx = sqlInsert.bind(this, ds)
@@ -321,7 +325,7 @@ function sqlExecute (ds, sql, data, returnGeneratedKeys) {
   }
 }
 
-function fetchRows (rs) {
+function fetchRows(rs) {
   let rsmd = rs.getMetaData()
   let numColumns = rsmd.getColumnCount()
   let columns = []
@@ -374,7 +378,7 @@ function fetchRows (rs) {
  * ou objeto único a ser inserido.
  * @return {Array} Retorna um Array com os ID's (chaves) dos itens inseridos.
  */
-function tableInsert (ds, table, itens) {
+function tableInsert(ds, table, itens) {
   let logFunction = this.logFunction
   let sdel = this.stringDelimiter
   let cnx = this.connection || getConnection(ds)
@@ -382,7 +386,7 @@ function tableInsert (ds, table, itens) {
   let stmt
   let affected
 
-  function buildSqlCommand (reg) {
+  function buildSqlCommand(reg) {
     let vrg = ''
     let cols = ''
     let values = ''
@@ -457,7 +461,7 @@ function tableInsert (ds, table, itens) {
  * @returns {Object} Objeto que informa o status da execução do comando e a quantidade de
  * linhas afetadas.
  */
-function tableUpdate (ds, table, row, whereCondition) {
+function tableUpdate(ds, table, row, whereCondition) {
   let sdel = this.stringDelimiter
   let values = ''
   let where = ''
@@ -518,7 +522,7 @@ function tableUpdate (ds, table, row, whereCondition) {
  * @returns {Object} Objeto que informa o status da execução do comando e a quantidade de
  * linhas afetadas.
  */
-function tableDelete (ds, table, whereCondition) {
+function tableDelete(ds, table, whereCondition) {
   let sdel = this.stringDelimiter
   let where = ''
   let and = ''
@@ -568,7 +572,7 @@ function tableDelete (ds, table, whereCondition) {
  * @param {Object} context - um objeto que será passado como segundo parâmetro da função *fncScript*.
  * @returns {Object}
  */
-function executeInSingleTransaction (ds, fncScript, context) {
+function executeInSingleTransaction(ds, fncScript, context) {
   let rs
   let cnx = getConnection(ds)
   let ctx = {
@@ -613,7 +617,7 @@ function executeInSingleTransaction (ds, fncScript, context) {
  * @param {FileInputStream} fis
  * @param {int} size
  */
-function Blob (fis, size) {
+function Blob(fis, size) {
   this.fis = fis
   this.size = size
 }
