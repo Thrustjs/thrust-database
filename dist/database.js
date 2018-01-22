@@ -134,25 +134,11 @@ function hasSqlInject(sql) {
 }
 
 function processNamedParameters(sql) {
-  var literals = {}
-  var id = 0
-  var key
-
-  sql = sql.replace(/(\'.*?\')/g, function (match) {
-    key = '${' + (id++) + '}'
-    literals[key] = match
-    return key
-  })
-
   var params = []
 
-  sql = sql.replace(/(:\w+)/g, function (match) {
+  sql = sql.replace(/(?<![\w:])(:\w+)/g, function(match){
     params.push(match.substring(1))
     return '?'
-  })
-
-  sql = sql.replace(/(\$\{\d+\})/g, function (match) {
-    return literals[match]
   })
 
   return {
