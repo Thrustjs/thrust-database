@@ -158,7 +158,6 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
     params = result.params
   }
 
-  sql = sql.replace(/(:\w+)/g, '?')
   stmt = (returnGeneratedKeys)
     ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
     : cnx.prepareStatement(sql)
