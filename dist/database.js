@@ -133,12 +133,12 @@ function hasSqlInject(sql) {
   return (testSqlInject != null)
 }
 
-function processNamedParameters(sql) {
+function processNamedParameters (sql) {
   var params = []
 
-  sql = sql.replace(/(?:[^\w:])(:\w+)/g, function (match) {
-    params.push(match.trim().substring(1))
-    return '?'
+  sql = sql.replace(/([\w:])?(:\w+)/g, function ($0, $1) {
+    !$1 && params.push($0.substring(1))
+    return ($1 ? $0 : '?')
   })
 
   return {
