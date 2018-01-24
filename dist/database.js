@@ -580,7 +580,7 @@ function executeInSingleTransaction(ds, fncScript, context) {
   } catch (ex) {
     rs = {
       error: true,
-      execption: ex
+      exception: ex
     }
 
     cnx.rollback()

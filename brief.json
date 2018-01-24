@@ -2,11 +2,7 @@
     "description": "Módulo de acesso a base de dados relacional",
     "name": "database",
     "path": "dist",
-<<<<<<< HEAD
-    "version": "0.2.5",
-=======
-    "version": "0.2.6",
->>>>>>> 725bb00ce99d0423e479ddf47532cb98d316b5c7
+    "version": "0.2.7",
     "author": "Nery Jr",
     "dependencies": {
         "jars": [
