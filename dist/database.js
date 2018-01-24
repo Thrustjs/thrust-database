@@ -5,11 +5,11 @@
  *
  */
 
-let Types = Java.type('java.sql.Types')
-let Statement = Java.type('java.sql.Statement')
+var Types = Java.type('java.sql.Types')
+var Statement = Java.type('java.sql.Statement')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
-let config = getConfig()
+var config = getConfig()
 
 config.dsm = config.dsm || {}
 
@@ -21,8 +21,8 @@ const sqlInjectionError = {
 function createDbInstance(options) {
   options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
-  let ds = createDataSource(options)
-  let ctx = {
+  var ds = createDataSource(options)
+  var ctx = {
     stringDelimiter: options.stringDelimiter || "'",
     logFunction: options.logFunction
   }
@@ -45,13 +45,13 @@ function createDbInstance(options) {
 }
 
 function getInfoColumns(ds, table) {
-  let cnx = getConnection(ds)
-  let databaseMetaData = cnx.getMetaData()
-  let infosCols = databaseMetaData.getColumns(null, null, table, null)
-  let cols = []
+  var cnx = getConnection(ds)
+  var databaseMetaData = cnx.getMetaData()
+  var infosCols = databaseMetaData.getColumns(null, null, table, null)
+  var cols = []
 
   while (infosCols.next()) {
-    let column = {}
+    var column = {}
 
     column.name = infosCols.getString('COLUMN_NAME')
     column.dataType = infosCols.getString('DATA_TYPE')
@@ -73,7 +73,7 @@ function getInfoColumns(ds, table) {
 }
 
 function createDataSource(options) {
-  let urlConnection = options.urlConnection
+  var urlConnection = options.urlConnection
 
   if (config.dsm[urlConnection]) {
     return config.dsm[urlConnection]
@@ -81,8 +81,8 @@ function createDataSource(options) {
 
   options.logFunction('createDataSource', 'DataSource', urlConnection)
 
-  let ds = new DataSource()
-  let cfg = Object.assign({
+  var ds = new DataSource()
+  var cfg = Object.assign({
     'initialSize': 5,
     'maxActive': 15,
     'maxIdle': 7,
@@ -102,8 +102,8 @@ function createDataSource(options) {
   if (!cfg.decryptClassName) {
     ds.setPassword(cfg.password)
   } else {
-    let DecryptClass = Java.type(cfg.decryptClassName)
-    let descryptInstance = new DecryptClass()
+    var DecryptClass = Java.type(cfg.decryptClassName)
+    var descryptInstance = new DecryptClass()
     ds.setPassword(descryptInstance.decrypt(cfg.password))
   }
 
@@ -120,7 +120,7 @@ function createDataSource(options) {
  * @returns {Connection}
  */
 function getConnection(ds, autoCommit) {
-  let connection = ds.getConnection()
+  var connection = ds.getConnection()
 
   connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
 
@@ -129,7 +129,6 @@ function getConnection(ds, autoCommit) {
 
 function hasSqlInject(sql) {
   var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
-
   return (testSqlInject != null)
 }
 
@@ -139,18 +138,18 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
 
   // sql = sql.replace(/(:\w+)/g, '?')
   if (data && data.constructor.name === 'Object') {
-    let keys = Object.keys(data)
-    let placeHolders = sql.match(/:\w+/g) || []
+    var keys = Object.keys(data)
+    var placeHolders = sql.match(/:\w+/g) || []
 
     placeHolders.forEach(function(namedParam) {
-      let name = namedParam.slice(1)
+      var name = namedParam.slice(1)
 
       if (keys.indexOf(name) >= 0) {
         params.push(name)
       }
     })
 
-    // for (let att in data) {
+    // for (var att in data) {
     //   sql = sql.replace(':' + att, '?')
     // }
 
@@ -164,44 +163,51 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
     : cnx.prepareStatement(sql)
 
   if (params && data && data.constructor.name === 'Object') {
-    // params = params.map(function(param) {
-    //   return param.slice(1)
-    // })
-    for (let name in data) {
-      let value = data[name]
-      let col = params.indexOf(name) + 1
+    for (var index in params) {
+      index = Number(index)
 
-      switch (value.constructor.name) {
-        case 'String':
-          stmt.setString(col, value)
-          break
+      var name = params[index]
 
-        case 'Number':
-          if (Math.floor(value) === value) {
-            stmt.setLong(col, value)
-          } else {
-            stmt.setDouble(col, value)
-          }
-          break
-
-        case 'Boolean':
-          stmt.setBoolean(col, value)
-          break
-
-        case 'Date':
-          stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
-          break
-
-        case 'Blob':
-          stmt.setBinaryStream(col, value.fis, value.size)
-          break
-
-        default:
-          stmt.setObject(col, value)
-          break
+      if (!data.hasOwnProperty(name)) {
+        throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
       }
 
-      col++
+      var value = data[name]
+      var col = index + 1
+
+      if (value === undefined || value === null) {
+        stmt.setObject(col, null)
+      } else {
+        switch (value.constructor.name) {
+          case 'String':
+            stmt.setString(col, value)
+            break
+
+          case 'Number':
+            if (Math.floor(value) === value) {
+              stmt.setLong(col, value)
+            } else {
+              stmt.setDouble(col, value)
+            }
+            break
+
+          case 'Boolean':
+            stmt.setBoolean(col, value)
+            break
+
+          case 'Date':
+            stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
+            break
+
+          case 'Blob':
+            stmt.setBinaryStream(col, value.fis, value.size)
+            break
+
+          default:
+            stmt.setObject(col, value)
+            break
+        }
+      }
     }
   }
 
@@ -209,7 +215,7 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
 }
 
 function sqlInsert(ds, sql, data, returnGeneratedKeys) {
-  let cnx, stmt, rsk, rows
+  var cnx, stmt, rsk, rows
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -244,7 +250,7 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 }
 
 function sqlSelect(ds, sql, data) {
-  let cnx, stmt, rs, result
+  var cnx, stmt, rs, result
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -270,9 +276,9 @@ function sqlSelect(ds, sql, data) {
 }
 
 function sqlExecute(ds, sql, data, returnGeneratedKeys) {
-  let cnx, stmt, result
-  let sqlSelectCtx = sqlSelect.bind(this, ds)
-  let sqlInsertCtx = sqlInsert.bind(this, ds)
+  var cnx, stmt, result
+  var sqlSelectCtx = sqlSelect.bind(this, ds)
+  var sqlInsertCtx = sqlInsert.bind(this, ds)
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -305,23 +311,23 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
 }
 
 function fetchRows(rs) {
-  let rsmd = rs.getMetaData()
-  let numColumns = rsmd.getColumnCount()
-  let columns = []
-  let types = []
-  let rows = []
+  var rsmd = rs.getMetaData()
+  var numColumns = rsmd.getColumnCount()
+  var columns = []
+  var types = []
+  var rows = []
 
-  for (let cl = 1; cl < numColumns + 1; cl++) {
+  for (var cl = 1; cl < numColumns + 1; cl++) {
     // columns[cl] = rsmd.getColumnLabel(cl)
     columns[cl] = rsmd.getColumnName(cl)
     types[cl] = rsmd.getColumnType(cl)
   }
 
   while (rs.next()) {
-    let row = {}
+    var row = {}
 
-    for (let nc = 1; nc < numColumns + 1; nc++) {
-      let value
+    for (var nc = 1; nc < numColumns + 1; nc++) {
+      var value
 
       if (types[nc] === Types.BINARY) {
         value = rs.getBytes(nc)
@@ -358,20 +364,20 @@ function fetchRows(rs) {
  * @return {Array} Retorna um Array com os ID's (chaves) dos itens inseridos.
  */
 function tableInsert(ds, table, itens) {
-  let logFunction = this.logFunction
-  let sdel = this.stringDelimiter
-  let cnx = this.connection || getConnection(ds)
-  let keys = []
-  let stmt
-  let affected
+  var logFunction = this.logFunction
+  var sdel = this.stringDelimiter
+  var cnx = this.connection || getConnection(ds)
+  var keys = []
+  var stmt
+  var affected
 
   function buildSqlCommand(reg) {
-    let vrg = ''
-    let cols = ''
-    let values = ''
-    let value
+    var vrg = ''
+    var cols = ''
+    var values = ''
+    var value
 
-    for (let key in reg) {
+    for (var key in reg) {
       value = reg[key]
       cols += vrg + '"' + key + '"'
       values += (value.constructor.name === 'Number')
@@ -389,7 +395,7 @@ function tableInsert(ds, table, itens) {
     stmt = cnx.createStatement()
 
     itens.forEach(function(reg, idx) {
-      let sql = buildSqlCommand(reg)
+      var sql = buildSqlCommand(reg)
 
       if (hasSqlInject(sql)) {
         return sqlInjectionError
@@ -402,7 +408,7 @@ function tableInsert(ds, table, itens) {
     logFunction('insert', 'executeBatch', '')
     affected = stmt.executeBatch()
   } else {
-    let sql = buildSqlCommand(itens)
+    var sql = buildSqlCommand(itens)
 
     if (hasSqlInject(sql)) {
       return sqlInjectionError
@@ -413,7 +419,7 @@ function tableInsert(ds, table, itens) {
     affected = stmt.executeUpdate()
   }
 
-  let rsKeys = stmt.getGeneratedKeys()
+  var rsKeys = stmt.getGeneratedKeys()
 
   while (rsKeys.next()) {
     keys.push(rsKeys.getObject(1))
@@ -441,14 +447,14 @@ function tableInsert(ds, table, itens) {
  * linhas afetadas.
  */
 function tableUpdate(ds, table, row, whereCondition) {
-  let sdel = this.stringDelimiter
-  let values = ''
-  let where = ''
-  let vrg = ''
-  let and = ''
+  var sdel = this.stringDelimiter
+  var values = ''
+  var where = ''
+  var vrg = ''
+  var and = ''
 
-  for (let col in row) {
-    let val = row[col]
+  for (var col in row) {
+    var val = row[col]
 
     values += vrg + '"' + col + '"' + ' = '
     values += (val.constructor.name === 'Number')
@@ -459,8 +465,8 @@ function tableUpdate(ds, table, row, whereCondition) {
   }
 
   if (whereCondition) {
-    for (let wkey in whereCondition) {
-      let val = whereCondition[wkey]
+    for (var wkey in whereCondition) {
+      var val = whereCondition[wkey]
 
       where += and + '"' + wkey + '"' + ' = '
       where += (val.constructor.name === 'Number')
@@ -471,16 +477,16 @@ function tableUpdate(ds, table, row, whereCondition) {
     }
   }
 
-  let sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
+  var sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
   }
 
-  let cnx = this.connection || getConnection(ds)
-  let stmt = cnx.prepareStatement(sql)
+  var cnx = this.connection || getConnection(ds)
+  var stmt = cnx.prepareStatement(sql)
   this.logFunction('update', 'executeUpdate', sql)
-  let result = stmt.executeUpdate()
+  var result = stmt.executeUpdate()
 
   /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
   if (!this.connection) {
@@ -502,14 +508,14 @@ function tableUpdate(ds, table, row, whereCondition) {
  * linhas afetadas.
  */
 function tableDelete(ds, table, whereCondition) {
-  let sdel = this.stringDelimiter
-  let where = ''
-  let and = ''
-  let result
+  var sdel = this.stringDelimiter
+  var where = ''
+  var and = ''
+  var result
 
   if (whereCondition) {
-    for (let wkey in whereCondition) {
-      let val = whereCondition[wkey]
+    for (var wkey in whereCondition) {
+      var val = whereCondition[wkey]
 
       where += and + '"' + wkey + '"' + ' = '
       where += (val.constructor.name === 'Number')
@@ -520,14 +526,14 @@ function tableDelete(ds, table, whereCondition) {
     }
   }
 
-  let sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
+  var sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
   }
 
-  let cnx = this.connection || getConnection(ds)
-  let stmt = cnx.prepareStatement(sql)
+  var cnx = this.connection || getConnection(ds)
+  var stmt = cnx.prepareStatement(sql)
 
   this.logFunction('delete', 'executeUpdate', sql)
   result = stmt.executeUpdate()
@@ -552,9 +558,9 @@ function tableDelete(ds, table, whereCondition) {
  * @returns {Object}
  */
 function executeInSingleTransaction(ds, fncScript, context) {
-  let rs
-  let cnx = getConnection(ds)
-  let ctx = {
+  var rs
+  var cnx = getConnection(ds)
+  var ctx = {
     connection: cnx,
     stringDelimiter: this.stringDelimiter || "'",
     logFunction: this.logFunction
