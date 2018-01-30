@@ -284,6 +284,10 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
     return sqlInjectionError
   }
 
+  if(sql) {
+    sql = sql.trim()
+  }
+
   if (sql.substring(0, 6).toUpperCase() === 'SELECT') {
     return sqlSelectCtx(sql, data)
   } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
