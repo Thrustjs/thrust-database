@@ -1,10 +1,10 @@
 /**
  * @author Nery Jr
  */
-let rdbms = 'sqlite'
-let cfgDatabase = getBitcodeConfig('database')()
-let dbConfig = cfgDatabase[rdbms]
-let sqls = {
+var rdbms = 'sqlite'
+var cfgDatabase = getBitcodeConfig('database')()
+var dbConfig = cfgDatabase[rdbms]
+var sqls = {
   sqlite: {
     create: 'CREATE TABLE ttest (id INTEGER PRIMARY KEY AUTOINCREMENT, num NUMERIC, txt VARCHAR(64), dat TEXT)'
   },
@@ -20,7 +20,7 @@ let sqls = {
 }
 
 function log(user, dbFunctionName, statementMethodName, sql) {
-  let d = new Date()
+  var d = new Date()
 
   print(d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate(), '|',
     d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + '.' + d.getMilliseconds(), '|',
@@ -31,8 +31,8 @@ function log(user, dbFunctionName, statementMethodName, sql) {
 
 // dbConfig.logFunction = log.bind(null, "Nery")
 
-let db = require('database').createDbInstance(dbConfig)
-let majesty = require('majesty')
+var db = require('database').createDbInstance(dbConfig)
+var majesty = require('majesty')
 
 function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
   var rs
@@ -59,7 +59,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.keys.length).to.above(0)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(3)
 
-        let sqlInject = "'Num Quatro'); INSERT INTO ttest (5, 'Num Cinco'"
+        var sqlInject = "'Num Quatro'); INSERT INTO ttest (5, 'Num Cinco'"
         expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (4, :num)', { num: sqlInject }, true).keys.length).to.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(4)
 
@@ -179,7 +179,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
       })
 
       it('Inserindo vários registro por comando na tabela', function() {
-        let regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
+        var regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
 
         expect(db.insert('ttest', regs).error).to.equal(false)
         // expect(rs.keys.length).to.above(0)
@@ -218,7 +218,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
       })
 
       it('Inserindo 3 novos registros na table com api [insert]', function() {
-        let regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
+        var regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
 
         expect(db.insert('ttest', regs).error).to.equal(false)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(3)
@@ -234,7 +234,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
       it('Executando sequência de comandos SQL em um cenário de NÃO problemas ou erro (commit) ', function() {
 
         rs = db.executeInSingleTransaction(function(db, context) {
-          let cmd = 'INSERT INTO "ttest" ("num", "txt") values (6, \'Num Seis\'), ' +
+          var cmd = 'INSERT INTO "ttest" ("num", "txt") values (6, \'Num Seis\'), ' +
             " (7, 'Num Sete'), (8, 'Num Oito'), (9, 'Num Nove')"
 
           db.execute(cmd)
@@ -266,7 +266,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
   })
 }
 
-let res = majesty.run(exec)
+var res = majesty.run(exec)
 
 print('', res.success.length, ' scenarios executed with success and')
 print('', res.failure.length, ' scenarios executed with failure.\n')

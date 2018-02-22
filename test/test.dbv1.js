@@ -129,7 +129,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001")
 
 /*
-let html = "<html>\n<body>\n"
+var html = "<html>\n<body>\n"
 
 majesty.report = {
     startExecution: function() {
@@ -149,7 +149,7 @@ majesty.report = {
     },
 
     scenarioExecuted: function(scenario) {
-        let result = "" + "[" + ((scenario.passed) ? "success" : "error") + "]"
+        var result = "" + "[" + ((scenario.passed) ? "success" : "error") + "]"
 
         // print(Array(scenario.level+1).join("    "), result, scenario.description)
         // html += Array(scenario.level+1).join("&nbsp&nbsp&nbsp") +  result +  scenario.description
