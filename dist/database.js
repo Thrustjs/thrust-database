@@ -13,7 +13,7 @@ var config = getConfig()
 
 config.dsm = config.dsm || {}
 
-const sqlInjectionError = {
+var sqlInjectionError = {
   error: true,
   message: 'Attempt sql injection!'
 }
