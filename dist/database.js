@@ -249,8 +249,33 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
   }
 }
 
-function sqlSelect(ds, sql, data) {
-  var cnx, stmt, rs, result
+function sqlSelect(ds, sqlCmd, dataValues, extraData) {
+  var cnx, stmt, sql, data, rs, result
+
+  if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
+    sql = sqlCmd
+    data = dataValues
+  } else {
+    var table = sqlCmd
+    var columns = dataValues || []
+    var vrg = ''
+    var cols = ''
+
+    // data = extraData
+
+    for (var i = 0; i < columns.length; i++) {
+      cols += vrg + '"' + columns[i] + '"'
+      vrg = ','
+    }
+
+    cols = (cols === '') ? '*' : cols
+
+    var where = mountWhereClause(extraData || {}, this.stringDelimiter)
+
+    sql = 'SELECT ' + cols + ' FROM "' + table + ((extraData) ? '" WHERE ' + where : '"')
+
+    // print('SQL =>', sql)
+  }
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -284,7 +309,7 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
     return sqlInjectionError
   }
 
-  if(sql) {
+  if (sql) {
     sql = sql.trim()
   }
 
@@ -518,16 +543,17 @@ function tableDelete(ds, table, whereCondition) {
   var result
 
   if (whereCondition) {
-    for (var wkey in whereCondition) {
-      var val = whereCondition[wkey]
+    // for (var wkey in whereCondition) {
+    //   var val = whereCondition[wkey]
 
-      where += and + '"' + wkey + '"' + ' = '
-      where += (val.constructor.name === 'Number')
-        ? val
-        : (sdel + val + sdel)
+    //   where += and + '"' + wkey + '"' + ' = '
+    //   where += (val.constructor.name === 'Number')
+    //     ? val
+    //     : (sdel + val + sdel)
 
-      and = ' AND '
-    }
+    //   and = ' AND '
+    // }
+    where = mountWhereClause(whereCondition, sdel)
   }
 
   var sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
@@ -600,6 +626,25 @@ function executeInSingleTransaction(ds, fncScript, context) {
   }
 
   return rs
+}
+
+function mountWhereClause(whereCondition, stringDelimiter) {
+  var sdel = stringDelimiter || "'"
+  var where = ''
+  var and = ''
+
+  for (var wkey in whereCondition) {
+    var wval = whereCondition[wkey]
+
+    where += and + '"' + wkey + '"' + ' = '
+    where += (wval.constructor.name === 'Number')
+      ? wval
+      : (sdel + wval + sdel)
+
+    and = ' AND '
+  }
+
+  return where
 }
 
 /**
