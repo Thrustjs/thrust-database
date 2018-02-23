@@ -13,7 +13,7 @@ var config = getConfig()
 
 config.dsm = config.dsm || {}
 
-const sqlInjectionError = {
+var sqlInjectionError = {
   error: true,
   message: 'Attempt sql injection!'
 }
@@ -282,6 +282,10 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
+  }
+
+  if(sql) {
+    sql = sql.trim()
   }
 
   if (sql.substring(0, 6).toUpperCase() === 'SELECT') {

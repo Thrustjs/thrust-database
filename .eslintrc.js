@@ -60,7 +60,7 @@ module.exports = {
     "no-class-assign": "error",
     "no-compare-neg-zero": "error",
     "no-cond-assign": "error",
-    "no-const-assign": "error",
+    "no-var-assign": "error",
     "no-constant-condition": ["error", { "checkLoops": false }],
     "no-control-regex": "error",
     "no-debugger": "error",
