@@ -141,7 +141,28 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
         rs = db.select('SELECT * FROM "ttest" WHERE "num" = :numero AND "txt" = :texto', { numero: 2, texto: 'Num Dois' })
         expect(rs.length).to.equal(1)
-        // print(JSON.stringify(rs))
+
+        rs = db.select('ttest', [], { num: 2, txt: 'Num Dois' })
+        // print('rs =>', JSON.stringify(rs))
+        expect(rs).to.satisfy(function(rs) {
+          return rs && rs.length === 1 && parseInt(rs[0].num) === 2 && rs[0].txt === 'Num Dois'
+        })
+
+        rs = db.select('ttest', ['num'], { num: 2, txt: 'Num Dois' })
+        // print('rs =>', JSON.stringify(rs))
+        expect(rs).to.satisfy(function(rs) {
+          return rs && rs.length === 1 && parseInt(rs[0].num) === 2 && rs[0].txt === undefined
+        })
+
+        rs = db.select('ttest', ['num'])
+        // print('\nrs =>', JSON.stringify(rs))
+        expect(rs.length).to.be.above(1)
+        expect(rs.length).to.be.equal(5)
+
+        rs = db.select('ttest')
+        // print('\nrs =>', JSON.stringify(rs))
+        expect(rs.length).to.be.above(1)
+        expect(rs.length).to.be.equal(5)
 
         // expect((rs = db.execute("SELECT COUNT(*) as count FROM "ttest"")).length).to.equal(1)
         // expect(rs[0].count).to.equal(5)
