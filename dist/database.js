@@ -466,12 +466,12 @@ function tableUpdate(ds, table, row, whereCondition) {
 
   if (whereCondition) {
     for (var wkey in whereCondition) {
-      var val = whereCondition[wkey]
+      var wval = whereCondition[wkey]
 
       where += and + '"' + wkey + '"' + ' = '
-      where += (val.constructor.name === 'Number')
-        ? val
-        : (sdel + val + sdel)
+      where += (wval.constructor.name === 'Number')
+        ? wval
+        : (sdel + wval + sdel)
 
       and = ' AND '
     }
