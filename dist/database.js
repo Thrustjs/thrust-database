@@ -715,5 +715,6 @@ var hookFunction = function(options) {
 }
 
 exports = {
-  createDbInstance: hookFunction
+  // createDbInstance: hookFunction
+  createDbInstance: createDbInstance
 }
