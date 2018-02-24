@@ -261,8 +261,6 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     var vrg = ''
     var cols = ''
 
-    // data = extraData
-
     for (var i = 0; i < columns.length; i++) {
       cols += vrg + '"' + columns[i] + '"'
       vrg = ','
@@ -273,8 +271,6 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     var where = mountWhereClause(extraData || {}, this.stringDelimiter)
 
     sql = 'SELECT ' + cols + ' FROM "' + table + ((extraData) ? '" WHERE ' + where : '"')
-
-    // print('SQL =>', sql)
   }
 
   if (hasSqlInject(sql)) {
@@ -656,6 +652,68 @@ function Blob(fis, size) {
   this.size = size
 }
 
+
+// exports = {
+//     createDbInstance: new Proxy(createDbInstance, {
+//         get: function(target, method) {
+//             return (method in target)
+//                 ? function() {
+//                     try {
+//                         target[method].applay(null, arguments)
+//                     } catch (error) {
+//                         print('\n\nFILENAME =>', __FILENAME__)
+//                         print('SCRIPTNAME =>', __SCRIPTFILE__, '\n\n')
+//                         print("[", error, "]")
+//                     }
+//                 }
+//                 : function() {
+//                     print("ERRO: o atribuito / método", method, 'não existe.')
+//                 }
+//         }
+//     })
+// }
+
+var hookFunction = function(options) {
+  var target = createDbInstance(options)
+  var hook = {}
+
+  hook.__noSuchMethod__ = function(id, args) {
+    if (id in target) {
+      try {
+        target[id].apply(null, arguments)
+      } catch (error) {
+        var st = error.getStackTrace()
+        var regex = /.*jdk\.nashorn\.internal\.scripts\.Script\$Recompilation.*\^eval?\\_\.(\w+)\(<eval>.*<eval>?:(\d+)\)$/g;
+        var groups
+
+        for (var i = 0; i < st.length; i++) {
+          var trace = st[i]
+
+          groups = regex.exec(trace)
+
+          if (groups) {
+            break
+          }
+        }
+
+        var errorDB = new Error([
+          '[thrust] ', scriptInfo.scriptFile, '_.', groups[1], ' #' + groups[2], '\n' + error.toString()].join(''),
+          scriptInfo.scriptFile + ' =>  _.' + groups[1],
+          groups[2]
+        )
+
+        errorDB.stackTrace = Java.from(error.getStackTrace())
+
+        throw errorDB
+      }
+    } else {
+      print("ERRO: o atribuito / método", id, 'não existe.')
+    }
+  }
+
+  return hook
+}
+
 exports = {
-  createDbInstance: createDbInstance
+  createDbInstance: hookFunction
 }
