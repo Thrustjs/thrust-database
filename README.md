@@ -21,7 +21,7 @@ Para utilizar as APIs de acesso a banco de dados é necessário importar o bitco
 Defina as opções do pool de conexões. Uma boa prática é colocar esta configuração no arquivo config.json que
 fica no diretório raiz da aplicação
 ```javascript
-    var dbConfig = getBitcodeConfig('database')()
+    var dbConfig = getConfig().database
 ```
 
 Depois execute a função de criação do objeto que disponibilizará as APIs de banco de dados
