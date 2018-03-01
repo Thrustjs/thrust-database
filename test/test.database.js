@@ -245,8 +245,14 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(3)
       })
 
+      it('Inserindo registro com valor nulo na table com api [insert]', function() {
+        let regs = [{ num: 16, txt: null }]
+        expect(db.insert('ttest', regs).error).to.equal(false)
+      })
+
       it('Apagando registro(s) da tabela DELETE table (com where)', function() {
         expect(db.delete('ttest', { num: 11 }).error).to.equal(false)
+        expect(db.delete('ttest', { num: 16 }).error).to.equal(false)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(2)
       })
     })
