@@ -262,7 +262,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     var cols = ''
 
     for (var i = 0; i < columns.length; i++) {
-      cols += vrg + '"' + columns[i] + '"'
+      cols += vrg + '' + columns[i] + ''
       vrg = ','
     }
 
@@ -270,7 +270,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
 
     var where = mountWhereClause(extraData || {}, this.stringDelimiter)
 
-    sql = 'SELECT ' + cols + ' FROM "' + table + ((extraData) ? '" WHERE ' + where : '"')
+    sql = 'SELECT ' + cols + ' FROM ' + table + ((extraData) ? ' WHERE ' + where : '')
   }
 
   if (hasSqlInject(sql)) {
@@ -404,7 +404,7 @@ function tableInsert(ds, table, itens) {
 
     for (var key in reg) {
       value = reg[key]
-      cols += vrg + '"' + key + '"'
+      cols += vrg + '' + key + ''
       values += (value.constructor.name === 'Number')
         ? (vrg + value)
         : (vrg + sdel + value + sdel)
@@ -413,7 +413,7 @@ function tableInsert(ds, table, itens) {
     }
 
     // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
-    return 'INSERT INTO "' + table + '" (' + cols + ') ' + 'VALUES (' + values + ') '
+    return 'INSERT INTO ' + table + ' (' + cols + ') ' + 'VALUES (' + values + ') '
   }
 
   if (itens.constructor.name === 'Array') {
@@ -481,7 +481,7 @@ function tableUpdate(ds, table, row, whereCondition) {
   for (var col in row) {
     var val = row[col]
 
-    values += vrg + '"' + col + '"' + ' = '
+    values += vrg + '' + col + '' + ' = '
     values += (val.constructor.name === 'Number')
       ? val
       : (sdel + val + sdel)
@@ -493,7 +493,7 @@ function tableUpdate(ds, table, row, whereCondition) {
     for (var wkey in whereCondition) {
       var wval = whereCondition[wkey]
 
-      where += and + '"' + wkey + '"' + ' = '
+      where += and + '' + wkey + '' + ' = '
       where += (wval.constructor.name === 'Number')
         ? wval
         : (sdel + wval + sdel)
@@ -502,7 +502,7 @@ function tableUpdate(ds, table, row, whereCondition) {
     }
   }
 
-  var sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
+  var sql = 'UPDATE ' + table + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -552,7 +552,7 @@ function tableDelete(ds, table, whereCondition) {
     where = mountWhereClause(whereCondition, sdel)
   }
 
-  var sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
+  var sql = 'DELETE FROM ' + table + ((whereCondition) ? ' WHERE ' + where : '')
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -632,7 +632,7 @@ function mountWhereClause(whereCondition, stringDelimiter) {
   for (var wkey in whereCondition) {
     var wval = whereCondition[wkey]
 
-    where += and + '"' + wkey + '"' + ' = '
+    where += and + '' + wkey + '' + ' = '
     where += (wval.constructor.name === 'Number')
       ? wval
       : (sdel + wval + sdel)
