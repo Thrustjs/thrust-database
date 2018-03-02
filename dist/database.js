@@ -405,7 +405,7 @@ function tableInsert(ds, table, itens) {
     for (var key in reg) {
       value = reg[key]
       cols += vrg + '"' + key + '"'
-      values += (value.constructor.name === 'Number')
+      values += (value === null || value.constructor.name === 'Number')
         ? (vrg + value)
         : (vrg + sdel + value + sdel)
 
