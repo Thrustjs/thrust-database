@@ -482,7 +482,7 @@ function tableUpdate(ds, table, row, whereCondition) {
     var val = row[col]
 
     values += vrg + '"' + col + '"' + ' = '
-    values += (val.constructor.name === 'Number')
+    values += (val === null || val.constructor.name === 'Number')
       ? val
       : (sdel + val + sdel)
 

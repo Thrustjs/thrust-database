@@ -220,6 +220,11 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
           return rs && rs.length === 1 && parseInt(rs[0].num) === 100 && rs[0].txt === 'Num Cem'
         })
 
+        expect(db.update('ttest', { num: 100, txt: null }, { num: 100 }).error).to.equal(false)
+        expect(db.execute('SELECT "num", "txt" FROM "ttest" WHERE "num"=100')).to.satisfy(function(rs) {
+          return rs && rs.length === 1 && parseInt(rs[0].num) === 100 && rs[0].txt === null
+        })
+
         expect(db.update('ttest', { num: 10, txt: 'Num Dez' }, { num: 100 }).error).to.equal(false)
         expect(db.execute('SELECT "num", "txt" FROM "ttest" WHERE "num"=10')).to.satisfy(function(rs) {
           return rs && rs.length === 1 && parseInt(rs[0].num) === 10 && rs[0].txt === 'Num Dez'
