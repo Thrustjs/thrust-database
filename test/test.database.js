@@ -59,15 +59,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.keys.length).to.above(0)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(3)
 
-        var sqlInject = "'Num Quatro'); INSERT INTO ttest (5, 'Num Cinco'"
-        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (4, :num)', { num: sqlInject }, true).keys.length).to.equal(1)
-        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(4)
-
-        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (5, \'Num Cinco\');\n ' +
-          'INSERT INTO "ttest" (6, \'Num Seis\')')).to.satisfy(function(rs) {
-            // não insere as tuplas: erro de SQL Injection
-            return rs.error === true && rs.message === 'Attempt sql injection!'
-          })
+        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (4, :num)', { num: 'Num Quatro' }, true).keys.length).to.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(4)
 
         expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (5, \'Num Cinco\'), (6, \'Num Seis\'), (7, \'Num Sete\')').error).to.equal(false)
@@ -264,7 +256,6 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
     describe('API [executeInSingleTransaction] -  execução de commandos SQL em uma única transação', function() {
       it('Executando sequência de comandos SQL em um cenário de NÃO problemas ou erro (commit) ', function() {
-
         rs = db.executeInSingleTransaction(function(db, context) {
           var cmd = 'INSERT INTO "ttest" ("num", "txt") values (6, \'Num Seis\'), ' +
             " (7, 'Num Sete'), (8, 'Num Oito'), (9, 'Num Nove')"
@@ -293,6 +284,48 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.error).to.equal(true)
         expect((rs = db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')).length).to.equal(1)
         expect(rs[0].count).to.equal(1)
+      })
+    })
+
+    describe('Prevenção de [SQL Inject]', function() {
+      it('Executando comando DML DROP TABLE table', function() {
+        rs = db.execute('DROP TABLE IF EXISTS "ttest"')
+        expect(rs.error).to.equal(false)
+      })
+
+      it('Executando comando DML CREATE table', function() {
+        expect(db.execute(sqls[rdbms].create).error).to.equal(false)
+      })
+
+      it('Utilizando API [execute]', function() {
+        var sqlInject = "'Num Um'); INSERT INTO ttest (2, 'Num Dois'"
+        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (1, :num)', { num: sqlInject }, true).keys.length).to.equal(1)
+        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+
+        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (2, \'Num Dois\');\n ' +
+          'INSERT INTO "ttest" (3, \'Num Tres\')')).to.satisfy(function(rs) {
+            // não insere as tuplas: erro de SQL Injection
+            return rs.error === true && rs.message === 'Attempt sql injection!'
+          })
+        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+      })
+
+      it('Utilizando API [insert]', function() {
+        var descricao = "'); DELETE TABLE \"ttest\"; SELECT ('ttest"
+
+        rs = db.insert('ttest', { id: 1, descricao: descricao })
+        expect(rs.error).to.be.equal(true)
+        expect(rs.message).to.be.equal('Attempt sql injection!')
+        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+      })
+
+      it('Utilizando API [update]', function() {
+        var novoValor = "Num Cem'); DELETE TABLE \"ttest\"; SELECT ('ttest"
+
+        rs = db.update('ttest', { num: 1 }, { txt: novoValor })
+        expect(rs.error).to.be.equal(true)
+        expect(rs.message).to.be.equal('Attempt sql injection!')
+        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
       })
     })
   })

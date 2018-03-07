@@ -18,12 +18,33 @@ var sqlInjectionError = {
   message: 'Attempt sql injection!'
 }
 
+var dialects = {
+  mysql: {
+    scapeChar: '`',
+    stringDelimiter: "'"
+  },
+  postgresql: {
+    scapeChar: '"',
+    stringDelimiter: "'"
+  },
+  sqlite: {
+    scapeChar: '"',
+    stringDelimiter: "'"
+  },
+  h2: {
+    scapeChar: '"',
+    stringDelimiter: "'"
+  }
+}
+
 function createDbInstance(options) {
   options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
   var ds = createDataSource(options)
+  var dialect = options.dialect || dialects.postgresql
   var ctx = {
-    stringDelimiter: options.stringDelimiter || "'",
+    // stringDelimiter: options.stringDelimiter || dialect.stringDelimiter,
+    dialect: dialect,
     logFunction: options.logFunction
   }
 
@@ -129,6 +150,7 @@ function getConnection(ds, autoCommit) {
 
 function hasSqlInject(sql) {
   var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
+
   return (testSqlInject != null)
 }
 
@@ -250,6 +272,8 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 }
 
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
+  var schar = this.dialect.scapeChar
+  var sdel = this.dialect.stringDelimiter
   var cnx, stmt, sql, data, rs, result
 
   if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
@@ -262,15 +286,15 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     var cols = ''
 
     for (var i = 0; i < columns.length; i++) {
-      cols += vrg + '"' + columns[i] + '"'
+      cols += vrg + schar + columns[i] + schar
       vrg = ','
     }
 
     cols = (cols === '') ? '*' : cols
 
-    var where = mountWhereClause(extraData || {}, this.stringDelimiter)
+    var where = mountWhereClause(extraData || {}, this.dialect)
 
-    sql = 'SELECT ' + cols + ' FROM "' + table + ((extraData) ? '" WHERE ' + where : '"')
+    sql = 'SELECT ' + cols + ' FROM ' + schar + table + ((extraData) ? schar + ' WHERE ' + where : schar)
   }
 
   if (hasSqlInject(sql)) {
@@ -390,7 +414,8 @@ function fetchRows(rs) {
  */
 function tableInsert(ds, table, itens) {
   var logFunction = this.logFunction
-  var sdel = this.stringDelimiter
+  var schar = this.dialect.scapeChar
+  var sdel = this.dialect.stringDelimiter
   var cnx = this.connection || getConnection(ds)
   var keys = []
   var stmt
@@ -404,7 +429,12 @@ function tableInsert(ds, table, itens) {
 
     for (var key in reg) {
       value = reg[key]
-      cols += vrg + '"' + key + '"'
+      cols += vrg + schar + key + schar
+
+      if (value && value.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
+        return sqlInjectionError
+      }
+
       values += (value === null || value.constructor.name === 'Number')
         ? (vrg + value)
         : (vrg + sdel + value + sdel)
@@ -413,7 +443,7 @@ function tableInsert(ds, table, itens) {
     }
 
     // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
-    return 'INSERT INTO "' + table + '" (' + cols + ') ' + 'VALUES (' + values + ') '
+    return 'INSERT INTO ' + schar + table + schar + ' (' + cols + ') ' + 'VALUES (' + values + ') '
   }
 
   if (itens.constructor.name === 'Array') {
@@ -422,7 +452,7 @@ function tableInsert(ds, table, itens) {
     itens.forEach(function(reg, idx) {
       var sql = buildSqlCommand(reg)
 
-      if (hasSqlInject(sql)) {
+      if (sql === sqlInjectionError || hasSqlInject(sql)) {
         return sqlInjectionError
       }
 
@@ -435,7 +465,7 @@ function tableInsert(ds, table, itens) {
   } else {
     var sql = buildSqlCommand(itens)
 
-    if (hasSqlInject(sql)) {
+    if (sql === sqlInjectionError || hasSqlInject(sql)) {
       return sqlInjectionError
     }
 
@@ -472,7 +502,8 @@ function tableInsert(ds, table, itens) {
  * linhas afetadas.
  */
 function tableUpdate(ds, table, row, whereCondition) {
-  var sdel = this.stringDelimiter
+  var schar = this.dialect.scapeChar
+  var sdel = this.dialect.stringDelimiter
   var values = ''
   var where = ''
   var vrg = ''
@@ -481,7 +512,12 @@ function tableUpdate(ds, table, row, whereCondition) {
   for (var col in row) {
     var val = row[col]
 
-    values += vrg + '"' + col + '"' + ' = '
+    values += vrg + schar + col + schar + ' = '
+
+    if (val && val.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
+      return sqlInjectionError
+    }
+
     values += (val === null || val.constructor.name === 'Number')
       ? val
       : (sdel + val + sdel)
@@ -493,7 +529,12 @@ function tableUpdate(ds, table, row, whereCondition) {
     for (var wkey in whereCondition) {
       var wval = whereCondition[wkey]
 
-      where += and + '"' + wkey + '"' + ' = '
+      where += and + schar + wkey + schar + ' = '
+
+      if (wval && wval.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
+        return sqlInjectionError
+      }
+
       where += (wval.constructor.name === 'Number')
         ? wval
         : (sdel + wval + sdel)
@@ -502,7 +543,7 @@ function tableUpdate(ds, table, row, whereCondition) {
     }
   }
 
-  var sql = 'UPDATE "' + table + '" SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
+  var sql = 'UPDATE ' + schar + table + schar + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -533,9 +574,10 @@ function tableUpdate(ds, table, row, whereCondition) {
  * linhas afetadas.
  */
 function tableDelete(ds, table, whereCondition) {
-  var sdel = this.stringDelimiter
+  var schar = this.dialect.scapeChar
+  // var sdel = this.dialect.stringDelimiter
   var where = ''
-  var and = ''
+  // var and = ''
   var result
 
   if (whereCondition) {
@@ -549,10 +591,10 @@ function tableDelete(ds, table, whereCondition) {
 
     //   and = ' AND '
     // }
-    where = mountWhereClause(whereCondition, sdel)
+    where = mountWhereClause(whereCondition, this.dialect)
   }
 
-  var sql = 'DELETE FROM "' + table + ((whereCondition) ? '" WHERE ' + where : '"')
+  var sql = 'DELETE FROM ' + schar + table + ((whereCondition) ? schar + ' WHERE ' + where : schar)
 
   if (hasSqlInject(sql)) {
     return sqlInjectionError
@@ -588,7 +630,7 @@ function executeInSingleTransaction(ds, fncScript, context) {
   var cnx = getConnection(ds)
   var ctx = {
     connection: cnx,
-    stringDelimiter: this.stringDelimiter || "'",
+    dialect: this.dialect,
     logFunction: this.logFunction
   }
 
@@ -624,15 +666,16 @@ function executeInSingleTransaction(ds, fncScript, context) {
   return rs
 }
 
-function mountWhereClause(whereCondition, stringDelimiter) {
-  var sdel = stringDelimiter || "'"
+function mountWhereClause(whereCondition, dialect) {
+  var schar = dialect.scapeChar
+  var sdel = dialect.stringDelimiter
   var where = ''
   var and = ''
 
   for (var wkey in whereCondition) {
     var wval = whereCondition[wkey]
 
-    where += and + '"' + wkey + '"' + ' = '
+    where += and + schar + wkey + schar + ' = '
     where += (wval.constructor.name === 'Number')
       ? wval
       : (sdel + wval + sdel)
