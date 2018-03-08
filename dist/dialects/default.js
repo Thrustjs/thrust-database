@@ -1,0 +1,4 @@
+exports = {
+  tableDelimiter: '"',
+  columnDelimiter: '"'
+};

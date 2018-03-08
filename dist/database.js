@@ -11,6 +11,8 @@ var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
 var config = getConfig()
 
+const dialects = require('dialects/index')
+
 config.dsm = config.dsm || {}
 
 var sqlInjectionError = {
@@ -24,7 +26,8 @@ function createDbInstance(options) {
   var ds = createDataSource(options)
   var ctx = {
     stringDelimiter: options.stringDelimiter || "'",
-    logFunction: options.logFunction
+    logFunction: options.logFunction,
+    dialect:
   }
 
   return {
