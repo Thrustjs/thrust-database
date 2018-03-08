@@ -13,6 +13,8 @@ var config = getConfig()
 
 config.dsm = config.dsm || {}
 
+var regexSqlInjectPevent = /;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|SELECT|WITH)|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi
+
 var sqlInjectionError = {
   error: true,
   message: 'Attempt sql injection!'
@@ -149,7 +151,8 @@ function getConnection(ds, autoCommit) {
 }
 
 function hasSqlInject(sql) {
-  var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
+  // var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
+  var testSqlInject = sql.match(regexSqlInjectPevent)
 
   return (testSqlInject != null)
 }
@@ -273,7 +276,7 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var schar = this.dialect.scapeChar
-  var sdel = this.dialect.stringDelimiter
+  // var sdel = this.dialect.stringDelimiter
   var cnx, stmt, sql, data, rs, result
 
   if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
@@ -333,7 +336,11 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
     sql = sql.trim()
   }
 
-  if (sql.substring(0, 6).toUpperCase() === 'SELECT') {
+  var sqlInstruction = sql.substring(0, 7).toUpperCase()
+
+  if (sqlInstruction.toUpperCase() === 'SELECT ' ||
+    sqlInstruction.toUpperCase() === '(SELECT' ||
+    sqlInstruction.substring(0, 5).toUpperCase() === 'WITH ') {
     return sqlSelectCtx(sql, data)
   } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
     return sqlInsertCtx(sql, data, returnGeneratedKeys)
@@ -431,7 +438,7 @@ function tableInsert(ds, table, itens) {
       value = reg[key]
       cols += vrg + schar + key + schar
 
-      if (value && value.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
+      if (value && value.toString().match(regexSqlInjectPevent)) {
         return sqlInjectionError
       }
 
