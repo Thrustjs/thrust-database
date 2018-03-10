@@ -1,7 +1,7 @@
 /**
  *
  * @author nery
- * @version 0.2.20180119
+ * @version 0.2.15
  *
  */
 
@@ -12,13 +12,6 @@ var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 var config = getConfig()
 
 config.dsm = config.dsm || {}
-
-var regexSqlInjectPevent = /;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|SELECT|WITH)|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi
-
-var sqlInjectionError = {
-  error: true,
-  message: 'Attempt sql injection!'
-}
 
 var dialects = {
   mysql: {
@@ -45,7 +38,6 @@ function createDbInstance(options) {
   var ds = createDataSource(options)
   var dialect = options.dialect || dialects.postgresql
   var ctx = {
-    // stringDelimiter: options.stringDelimiter || dialect.stringDelimiter,
     dialect: dialect,
     logFunction: options.logFunction
   }
@@ -150,50 +142,16 @@ function getConnection(ds, autoCommit) {
   return connection
 }
 
-function hasSqlInject(sql) {
-  // var testSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
-  var testSqlInject = sql.match(regexSqlInjectPevent)
-
-  return (testSqlInject != null)
-}
-
-function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
-  var stmt
-  var params = []
-
-  // sql = sql.replace(/(:\w+)/g, '?')
-  if (data && data.constructor.name === 'Object') {
-    var keys = Object.keys(data)
-    var placeHolders = sql.match(/:\w+/g) || []
-
-    placeHolders.forEach(function(namedParam) {
-      var name = namedParam.slice(1)
-
-      if (keys.indexOf(name) >= 0) {
-        params.push(name)
-      }
-    })
-
-    // for (var att in data) {
-    //   sql = sql.replace(':' + att, '?')
-    // }
-
-    params.forEach(function(namedParam) {
-      sql = sql.replace(':' + namedParam, '?')
-    })
-  }
-
-  stmt = (returnGeneratedKeys)
-    ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-    : cnx.prepareStatement(sql)
-
+function bindParams(stmt, params, data) {
   if (params && data && data.constructor.name === 'Object') {
     for (var index in params) {
       index = Number(index)
 
       var name = params[index]
 
+      // FIX: não deveria considerar NULL ao invés de dar uma exception??
       if (!data.hasOwnProperty(name)) {
+        console.log('params =>', params, '\tdata =>', data)
         throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
       }
 
@@ -239,20 +197,43 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
   return stmt
 }
 
-function sqlInsert(ds, sql, data, returnGeneratedKeys) {
-  var cnx, stmt, rsk, rows
+function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
+  var stmt
+  var params = []
 
-  if (hasSqlInject(sql)) {
-    return sqlInjectionError
+  // sql = sql.replace(/(:\w+)/g, '?')
+  if (data && data.constructor.name === 'Object') {
+    var keys = Object.keys(data)
+    var placeHolders = sql.match(/:\w+/g) || []
+
+    placeHolders.forEach(function(namedParam) {
+      var name = namedParam.slice(1)
+
+      if (keys.indexOf(name) >= 0) {
+        params.push(name)
+      }
+    })
+
+    params.forEach(function(namedParam) {
+      sql = sql.replace(':' + namedParam, '?')
+    })
   }
 
+  stmt = (returnGeneratedKeys)
+    ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+    : cnx.prepareStatement(sql)
+
+  return bindParams(stmt, params, data)
+}
+
+function sqlInsert(ds, sql, data, returnGeneratedKeys) {
+  var cnx, stmt, rsk, rows, affected
+
   cnx = this.connection || getConnection(ds)
-  // stmt = cnx.prepareStatement(sql, (returnGeneratedKeys)
-  //     ? Statement.RETURN_GENERATED_KEYS
-  //     : Statement.NO_GENERATED_KEYS)
   stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys)
   this.logFunction('execute', 'executeUpdate', sql)
-  stmt.executeUpdate()
+  affected = stmt.executeUpdate()
+
   rsk = stmt.getGeneratedKeys()
   rows = []
 
@@ -270,7 +251,8 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
   return {
     error: false,
-    keys: rows
+    keys: rows,
+    affectedRows: affected
   }
 }
 
@@ -278,34 +260,39 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var schar = this.dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
   var cnx, stmt, sql, data, rs, result
+  var whereData = {}
 
   if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
     sql = sqlCmd
     data = dataValues
   } else {
-    var table = sqlCmd
+    var table = sqlCmd.split(' ')[0]
     var columns = dataValues || []
     var vrg = ''
     var cols = ''
 
     for (var i = 0; i < columns.length; i++) {
-      cols += vrg + schar + columns[i] + schar
+      cols += vrg + schar + columns[i].split(' ')[0] + schar
       vrg = ','
     }
 
     cols = (cols === '') ? '*' : cols
 
-    var where = mountWhereClause(extraData || {}, this.dialect)
+    var whereCondition = extraData || {}
+    var where = ''
+    var and = ''
+
+    for (var wkey in whereCondition) {
+      whereData['w_' + wkey] = whereCondition[wkey]
+      where += and + schar + wkey + schar + ' = :w_' + wkey
+      and = ' AND '
+    }
 
     sql = 'SELECT ' + cols + ' FROM ' + schar + table + ((extraData) ? schar + ' WHERE ' + where : schar)
   }
 
-  if (hasSqlInject(sql)) {
-    return sqlInjectionError
-  }
-
   cnx = this.connection || getConnection(ds)
-  stmt = prepareStatement(cnx, sql, data)
+  stmt = prepareStatement(cnx, sql, Object.assign(whereData, data))
 
   this.logFunction('execute', 'executeQuery', sql)
   rs = stmt.executeQuery()
@@ -328,26 +315,17 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
   var sqlSelectCtx = sqlSelect.bind(this, ds)
   var sqlInsertCtx = sqlInsert.bind(this, ds)
 
-  if (hasSqlInject(sql)) {
-    return sqlInjectionError
-  }
-
   if (sql) {
     sql = sql.trim()
   }
 
-  var sqlInstruction = sql.substring(0, 7).toUpperCase()
-
-  if (sqlInstruction.toUpperCase() === 'SELECT ' ||
-    sqlInstruction.toUpperCase() === '(SELECT' ||
-    sqlInstruction.substring(0, 5).toUpperCase() === 'WITH ') {
+  if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
     return sqlSelectCtx(sql, data)
   } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
     return sqlInsertCtx(sql, data, returnGeneratedKeys)
   }
 
   cnx = this.connection || getConnection(ds)
-  // stmt = cnx.prepareStatement(sql.trim())
   stmt = prepareStatement(cnx, sql.trim(), data)
   this.logFunction('execute', 'executeUpdate', sql)
   result = stmt.executeUpdate()
@@ -401,6 +379,8 @@ function fetchRows(rs) {
         } catch (error) {
           row[columns[nc]] = value
         }
+      } else if (!isNaN(value)) {
+        row[columns[nc]] = Number(value)
       } else {
         row[columns[nc]] = value
       }
@@ -419,72 +399,69 @@ function fetchRows(rs) {
  * ou objeto único a ser inserido.
  * @return {Array} Retorna um Array com os ID's (chaves) dos itens inseridos.
  */
-function tableInsert(ds, table, itens) {
+function tableInsert(ds, table, itens, returnGeneratedKeys) {
   var logFunction = this.logFunction
   var schar = this.dialect.scapeChar
-  var sdel = this.dialect.stringDelimiter
+  // var sdel = this.dialect.stringDelimiter
   var cnx = this.connection || getConnection(ds)
+  var affected = 0
+  var stmt, sql
+
+  var itIsDataArray = (itens.constructor.name === 'Array')
+
+  function mountSql(table, params, data) {
+    var placeHolders = Array.apply(null, new Array(params.length)).map(function() { return '?' })
+
+    return ['INSERT INTO ', schar, table, schar,
+      ' (', schar, params.join(schar + ', ' + schar), schar, ')',
+      ' values (', placeHolders.join(', '), ')'
+    ].join('')
+  }
+
+  function mountStmt(sql, params, data) {
+    stmt = (returnGeneratedKeys)
+      ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+      : cnx.prepareStatement(sql)
+
+    bindParams(stmt, params, data)
+
+    return stmt
+  }
+
+  function getGeneratedKeys(stmt) {
+    var keys = []
+
+    if (returnGeneratedKeys) {
+      var rsKeys = stmt.getGeneratedKeys()
+
+      while (rsKeys.next()) {
+        keys.push(rsKeys.getObject(1))
+      }
+    }
+
+    return keys
+  }
+
   var keys = []
-  var stmt
-  var affected
 
-  function buildSqlCommand(reg) {
-    var vrg = ''
-    var cols = ''
-    var values = ''
-    var value
+  if (itIsDataArray) {
+    itens.forEach(function(data) {
+      var params = Object.keys(data)
 
-    for (var key in reg) {
-      value = reg[key]
-      cols += vrg + schar + key + schar
-
-      if (value && value.toString().match(regexSqlInjectPevent)) {
-        return sqlInjectionError
-      }
-
-      values += (value === null || value.constructor.name === 'Number')
-        ? (vrg + value)
-        : (vrg + sdel + value + sdel)
-
-      vrg = ','
-    }
-
-    // print( "INSERT INTO " + table + " (" + cols + ") " + "VALUES (" + values + ") " )
-    return 'INSERT INTO ' + schar + table + schar + ' (' + cols + ') ' + 'VALUES (' + values + ') '
-  }
-
-  if (itens.constructor.name === 'Array') {
-    stmt = cnx.createStatement()
-
-    itens.forEach(function(reg, idx) {
-      var sql = buildSqlCommand(reg)
-
-      if (sql === sqlInjectionError || hasSqlInject(sql)) {
-        return sqlInjectionError
-      }
-
-      logFunction('insert', 'addBatch', sql)
-      stmt.addBatch(sql)
+      sql = mountSql(table, params, data)
+      stmt = mountStmt(sql, params, data)
+      logFunction('insert', 'executeUpdate', sql, data)
+      affected += stmt.executeUpdate()
+      keys = (returnGeneratedKeys) ? getGeneratedKeys(stmt) : keys
     })
-
-    logFunction('insert', 'executeBatch', '')
-    affected = stmt.executeBatch()
   } else {
-    var sql = buildSqlCommand(itens)
+    var params = Object.keys(itens)
 
-    if (sql === sqlInjectionError || hasSqlInject(sql)) {
-      return sqlInjectionError
-    }
-
-    stmt = cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-    logFunction('insert', 'executeUpdate', sql)
-    affected = stmt.executeUpdate()
-  }
-
-  var rsKeys = stmt.getGeneratedKeys()
-
-  while (rsKeys.next()) {
-    keys.push(rsKeys.getObject(1))
+    sql = mountSql(table, params, itens)
+    stmt = mountStmt(sql, params, itens)
+    logFunction('insert', 'executeUpdate', sql, itens)
+    affected += stmt.executeUpdate()
+    keys = (returnGeneratedKeys) ? getGeneratedKeys(stmt) : keys
   }
 
   /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
@@ -510,56 +487,37 @@ function tableInsert(ds, table, itens) {
  */
 function tableUpdate(ds, table, row, whereCondition) {
   var schar = this.dialect.scapeChar
-  var sdel = this.dialect.stringDelimiter
+  // var sdel = this.dialect.stringDelimiter
+  var whereData = {}
+  var setData = {}
   var values = ''
   var where = ''
   var vrg = ''
   var and = ''
 
   for (var col in row) {
-    var val = row[col]
-
-    values += vrg + schar + col + schar + ' = '
-
-    if (val && val.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
-      return sqlInjectionError
-    }
-
-    values += (val === null || val.constructor.name === 'Number')
-      ? val
-      : (sdel + val + sdel)
-
+    setData['set_' + col] = row[col]
+    values += vrg + schar + col + schar + ' = :set_' + col
     vrg = ', '
   }
 
   if (whereCondition) {
     for (var wkey in whereCondition) {
-      var wval = whereCondition[wkey]
-
-      where += and + schar + wkey + schar + ' = '
-
-      if (wval && wval.toString().match(/\)\s*;\s*(ALTER|DROP|CREATE|INSERT|UPDATE|DELETE|WITH)/gi)) {
-        return sqlInjectionError
-      }
-
-      where += (wval.constructor.name === 'Number')
-        ? wval
-        : (sdel + wval + sdel)
-
+      whereData['w_' + wkey] = whereCondition[wkey]
+      where += and + schar + wkey + schar + ' = :w_' + wkey
       and = ' AND '
     }
   }
 
-  var sql = 'UPDATE ' + schar + table + schar + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
-
-  if (hasSqlInject(sql)) {
-    return sqlInjectionError
-  }
+  var sql = 'UPDATE ' + schar + table.split(' ')[0] + schar + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
   var cnx = this.connection || getConnection(ds)
-  var stmt = cnx.prepareStatement(sql)
+  var stmt = prepareStatement(cnx, sql, Object.assign({}, setData, whereData))
   this.logFunction('update', 'executeUpdate', sql)
-  var result = stmt.executeUpdate()
+  var affected = stmt.executeUpdate()
+
+  stmt.close()
+  stmt = null
 
   /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
   if (!this.connection) {
@@ -569,7 +527,7 @@ function tableUpdate(ds, table, row, whereCondition) {
 
   return {
     error: false,
-    affectedRows: result
+    affectedRows: affected
   }
 }
 
@@ -583,35 +541,27 @@ function tableUpdate(ds, table, row, whereCondition) {
 function tableDelete(ds, table, whereCondition) {
   var schar = this.dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
+  var whereData = {}
   var where = ''
-  // var and = ''
-  var result
+  var and = ''
 
   if (whereCondition) {
-    // for (var wkey in whereCondition) {
-    //   var val = whereCondition[wkey]
-
-    //   where += and + '"' + wkey + '"' + ' = '
-    //   where += (val.constructor.name === 'Number')
-    //     ? val
-    //     : (sdel + val + sdel)
-
-    //   and = ' AND '
-    // }
-    where = mountWhereClause(whereCondition, this.dialect)
+    for (var wkey in whereCondition) {
+      whereData['w_' + wkey] = whereCondition[wkey]
+      where += and + schar + wkey + schar + ' = :w_' + wkey
+      and = ' AND '
+    }
   }
 
-  var sql = 'DELETE FROM ' + schar + table + ((whereCondition) ? schar + ' WHERE ' + where : schar)
-
-  if (hasSqlInject(sql)) {
-    return sqlInjectionError
-  }
+  var sql = 'DELETE FROM ' + schar + table.split(' ')[0] + ((whereCondition) ? schar + ' WHERE ' + where : schar)
 
   var cnx = this.connection || getConnection(ds)
-  var stmt = cnx.prepareStatement(sql)
-
+  var stmt = prepareStatement(cnx, sql, whereData)
   this.logFunction('delete', 'executeUpdate', sql)
-  result = stmt.executeUpdate()
+  var affected = stmt.executeUpdate()
+
+  stmt.close()
+  stmt = null
 
   /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
   if (!this.connection) {
@@ -621,7 +571,7 @@ function tableDelete(ds, table, whereCondition) {
 
   return {
     error: false,
-    affectedRows: result
+    affectedRows: affected
   }
 }
 
@@ -671,26 +621,6 @@ function executeInSingleTransaction(ds, fncScript, context) {
   }
 
   return rs
-}
-
-function mountWhereClause(whereCondition, dialect) {
-  var schar = dialect.scapeChar
-  var sdel = dialect.stringDelimiter
-  var where = ''
-  var and = ''
-
-  for (var wkey in whereCondition) {
-    var wval = whereCondition[wkey]
-
-    where += and + schar + wkey + schar + ' = '
-    where += (wval.constructor.name === 'Number')
-      ? wval
-      : (sdel + wval + sdel)
-
-    and = ' AND '
-  }
-
-  return where
 }
 
 /**

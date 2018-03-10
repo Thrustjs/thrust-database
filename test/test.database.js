@@ -1,7 +1,7 @@
 /**
  * @author Nery Jr
  */
-var rdbms = 'sqlite'
+var rdbms = 'postgresql'
 var cfgDatabase = getBitcodeConfig('database')()
 var dbConfig = cfgDatabase[rdbms]
 var sqls = {
@@ -181,10 +181,10 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.error).to.equal(false)
         expect(rs.affectedRows).to.equal(1)
 
-        expect((rs = db.insert('ttest', { txt: 'Num Dois e [num] = null' })).error).to.equal(false)
+        expect((rs = db.insert('ttest', { txt: 'Num Dois e [num] = null' }, true)).error).to.equal(false)
         expect(rs.keys.length).to.equal(1)
 
-        expect((rs = db.insert('ttest', { num: 3 })).error).to.equal(false)
+        expect((rs = db.insert('ttest', { num: 3 }, true)).error).to.equal(false)
         expect(rs.keys.length).to.equal(1)
 
         expect((rs = db.execute('SELECT * FROM "ttest"')).constructor.name).to.equal('Array')
@@ -207,7 +207,10 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
     describe('API [update]', function() {
       it('Alterando registro(s) da tabela UPDATE table (com where)', function() {
-        expect(db.update('ttest', { num: 100, txt: 'Num Cem' }, { num: 10 }).error).to.equal(false)
+        // expect(db.update('ttest', { num: 100, txt: 'Num Cem' }, { num: 10 }).error).to.equal(false)
+        rs = db.update('ttest', { num: 100, txt: 'Num Cem' }, { num: 10 })
+        expect(rs.error).to.equal(false)
+        expect(rs.affectedRows).to.equal(1)
         expect(db.execute('SELECT "num", "txt" FROM "ttest" WHERE "num"=100')).to.satisfy(function(rs) {
           return rs && rs.length === 1 && parseInt(rs[0].num) === 100 && rs[0].txt === 'Num Cem'
         })
@@ -302,29 +305,38 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (1, :num)', { num: sqlInject }, true).keys.length).to.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
 
-        expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (2, \'Num Dois\');\n ' +
-          'INSERT INTO "ttest" (3, \'Num Tres\')')).to.satisfy(function(rs) {
-            // não insere as tuplas: erro de SQL Injection
-            return rs.error === true && rs.message === 'Attempt sql injection!'
-          })
-        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+        rs = db.execute('INSERT INTO "ttest" ("num", "txt") values (2, \'Num Dois\');\n ' +
+          'INSERT INTO "ttest" ("num", "txt") values (3, \'Num Tres\')')
+        console.log('\nrs =>', rs)
+        console.log('\nselect * =>', db.execute('SELECT * FROM "ttest"'))
+
+        expect(rs.affectedRows).to.equal(1)
+        expect(db.execute('SELECT * FROM "ttest"').length).to.above(1)
+        // .to.satisfy(function(rs) {
+        //   // não insere as tuplas: erro de SQL Injection
+        //   return rs.error === true && rs.message === 'Attempt sql injection!'
+        // })
       })
 
       it('Utilizando API [insert]', function() {
-        var descricao = "'); DELETE TABLE \"ttest\"; SELECT ('ttest"
+        var descricao = "'); DROP TABLE \"ttest\"; SELECT ('ttest"
 
-        rs = db.insert('ttest', { id: 1, descricao: descricao })
-        expect(rs.error).to.be.equal(true)
-        expect(rs.message).to.be.equal('Attempt sql injection!')
-        expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+        db.execute('DELETE FROM "ttest"')
+
+        db.insert('ttest', { id: 1, txt: descricao })
+        rs = db.execute('SELECT * FROM "ttest"')
+        expect(rs.length).to.be.lessThan(2)
+        expect(rs[0].txt.length).to.be.equal(38)
       })
 
       it('Utilizando API [update]', function() {
         var novoValor = "Num Cem'); DELETE TABLE \"ttest\"; SELECT ('ttest"
 
-        rs = db.update('ttest', { num: 1 }, { txt: novoValor })
-        expect(rs.error).to.be.equal(true)
-        expect(rs.message).to.be.equal('Attempt sql injection!')
+        db.execute('DELETE FROM "ttest"')
+        rs = db.insert('ttest', { id: 1, num: 1, txt: 'Num Um' })
+
+        rs = db.update('ttest', { txt: novoValor }, { num: 1 })
+        expect(rs.affectedRows).to.be.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
       })
     })
@@ -338,8 +350,10 @@ print('', res.failure.length, ' scenarios executed with failure.\n')
 
 res.failure.forEach(function(fail) {
   print('[' + fail.scenario + '] =>', fail.execption)
-  if (fail.execption.printStackTrace) {
+  var i = 0
+  if (fail.execption.printStackTrace && i === 0) {
     fail.execption.printStackTrace()
+    i++
   }
 })
 
