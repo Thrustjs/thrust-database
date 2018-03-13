@@ -262,7 +262,8 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var cnx, stmt, sql, data, rs, result
   var whereData = {}
 
-  if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
+  // if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
+  if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
     sql = sqlCmd
     data = dataValues
   } else {
