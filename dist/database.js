@@ -259,12 +259,12 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var schar = this.dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
-  var cnx, stmt, sql, data, rs, result
+  var cnx, stmt, data, rs, result
   var whereData = {}
+  var sql = sqlCmd
 
   // if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
   if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
-    sql = sqlCmd
     data = dataValues
   } else {
     var table = sqlCmd.split(' ')[0]
