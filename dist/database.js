@@ -258,7 +258,7 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var schar = this.dialect.scapeChar
-  // var sdel = this.dialect.stringDelimiterq
+  // var sdel = this.dialect.stringDelimiter
   var cnx, stmt, data, rs, result
   var whereData = {}
   var sql = sqlCmd
