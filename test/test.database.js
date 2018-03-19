@@ -1,7 +1,7 @@
 /**
  * @author Nery Jr
  */
-var rdbms = 'postgresql'
+var rdbms = 'sqlite'
 var cfgDatabase = getBitcodeConfig('database')()
 var dbConfig = cfgDatabase[rdbms]
 var sqls = {
