@@ -116,6 +116,10 @@ var db = dbm.createDbInstance(dbConfig2)
 
 ## What's new
 
+v0.2.21 - Fix: métodos [select] e [execute] para utilizarem _array_ em mais de uma cláusula com IN
+* Correção do método [bindParams] ao executar comandos SQL com mais de uma cláusula IN
+* Adição de cenários de testes
+
 v0.2.20 - Melhoria: métodos [select] e [execute] para utilizarem _array_
 * Alteração dos métodos [select] e [execute] para utilizarem _array_ na cláusula IN
 * Adição de cenários de testes

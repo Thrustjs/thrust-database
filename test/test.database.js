@@ -343,7 +343,9 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
     describe('Binding Array', function() {
       it('Apagando todos os registros (Delete table)', function() {
-        expect(db.execute('DELETE FROM "ttest"').error).to.be.equal(false)
+        // expect(db.execute('DELETE FROM "ttest"').error).to.be.equal(false)
+        expect(db.execute('DROP TABLE IF EXISTS "ttest"').error).to.be.equal(false)
+        expect(db.execute(sqls[rdbms].create).error).to.equal(false)
       })
 
       it('Inserindo 3 novos registros', function() {
@@ -358,7 +360,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.length).to.equal(2)
       })
 
-      it('API [execute]', function() {
+      it('API [execute] com um IN', function() {
         rs = db.execute('UPDATE "ttest" SET "num" = "num" * :value WHERE "num" IN (:numeros)', { value: 10, numeros: [11, 12] })
         expect(rs.affectedRows).to.equal(2)
 
@@ -366,6 +368,15 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(rs.length).to.equal(2)
 
         rs = db.select('SELECT * FROM "ttest" WHERE "num" IN (110, 120)')
+        expect(rs.length).to.equal(2)
+      })
+
+      it('API [execute] com vários IN', function() {
+        // console.log('\nrs =>', db.execute('SELECT * FROM ttest'))
+        rs = db.execute('SELECT * FROM ttest WHERE id IN (:ids) AND num IN (:nums)', {
+          ids: [1, 2, 3, 4, 5],
+          nums: [110, 120]
+        })
         expect(rs.length).to.equal(2)
       })
     })

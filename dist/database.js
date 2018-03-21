@@ -186,15 +186,16 @@ function bindParams(stmt, params, data) {
       }
 
       var value = data[name]
-      var col = arrInc + index + 1
+      var col = index + 1
 
       if (value && value.constructor.name === 'Array') {
         value.forEach(function(arrValue) {
           setParameter(stmt, col + arrInc, arrValue)
           arrInc++
         })
+        arrInc = (arrInc > 0) ? --arrInc : arrInc
       } else {
-        setParameter(stmt, col, value)
+        setParameter(stmt, col + arrInc, value)
       }
     }
   }

@@ -2,13 +2,14 @@
   "description": "Módulo de acesso a base de dados relacional",
   "name": "database",
   "path": "dist",
-  "version": "0.2.20",
+  "version": "0.2.21",
   "author": "Nery Jr",
   "contributors": [
     "Cleverson Puche",
     "Bruno Machado",
     "Leonardo Delfinio",
-    "Luiz Tibo"
+    "Luiz Tibo",
+    "Écio Jr"
   ],
   "dependencies": {
     "jars": [
