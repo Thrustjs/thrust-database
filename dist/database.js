@@ -1,10 +1,3 @@
-/**
- *
- * @author nery
- * @version 0.2.15
- *
- */
-
 var Types = Java.type('java.sql.Types')
 var Statement = Java.type('java.sql.Statement')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
@@ -119,6 +112,7 @@ function createDataSource(options) {
   } else {
     var DecryptClass = Java.type(cfg.decryptClassName)
     var descryptInstance = new DecryptClass()
+
     ds.setPassword(descryptInstance.decrypt(cfg.password))
   }
 
@@ -142,7 +136,44 @@ function getConnection(ds, autoCommit) {
   return connection
 }
 
+function setParameter(stmt, col, value) {
+  if (value === undefined || value === null) {
+    stmt.setObject(col, null)
+  } else {
+    switch (value.constructor.name) {
+      case 'String':
+        stmt.setString(col, value)
+        break
+
+      case 'Number':
+        if (Math.floor(value) === value) {
+          stmt.setLong(col, value)
+        } else {
+          stmt.setDouble(col, value)
+        }
+        break
+
+      case 'Boolean':
+        stmt.setBoolean(col, value)
+        break
+
+      case 'Date':
+        stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
+        break
+
+      case 'Blob':
+        stmt.setBinaryStream(col, value.fis, value.size)
+        break
+
+      default:
+        stmt.setObject(col, value)
+        break
+    }
+  }
+}
+
 function bindParams(stmt, params, data) {
+  var arrInc = 0
   if (params && data && data.constructor.name === 'Object') {
     for (var index in params) {
       index = Number(index)
@@ -155,40 +186,15 @@ function bindParams(stmt, params, data) {
       }
 
       var value = data[name]
-      var col = index + 1
+      var col = arrInc + index + 1
 
-      if (value === undefined || value === null) {
-        stmt.setObject(col, null)
+      if (value && value.constructor.name === 'Array') {
+        value.forEach(function(arrValue) {
+          setParameter(stmt, col + arrInc, arrValue)
+          arrInc++
+        })
       } else {
-        switch (value.constructor.name) {
-          case 'String':
-            stmt.setString(col, value)
-            break
-
-          case 'Number':
-            if (Math.floor(value) === value) {
-              stmt.setLong(col, value)
-            } else {
-              stmt.setDouble(col, value)
-            }
-            break
-
-          case 'Boolean':
-            stmt.setBoolean(col, value)
-            break
-
-          case 'Date':
-            stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
-            break
-
-          case 'Blob':
-            stmt.setBinaryStream(col, value.fis, value.size)
-            break
-
-          default:
-            stmt.setObject(col, value)
-            break
-        }
+        setParameter(stmt, col, value)
       }
     }
   }
@@ -214,7 +220,16 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
     })
 
     params.forEach(function(namedParam) {
-      sql = sql.replace(':' + namedParam, '?')
+      var val = data[namedParam]
+
+      if (val && val.constructor.name === 'Array') {
+        var questionArray = val.map(function() {
+          return '?'
+        })
+        sql = sql.replace(':' + namedParam, questionArray.join(','))
+      } else {
+        sql = sql.replace(':' + namedParam, '?')
+      }
     })
   }
 
@@ -257,11 +272,9 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var schar = this.dialect.scapeChar
-  // var sdel = this.dialect.stringDelimiter
   var cnx, stmt, sql, data, rs, result
   var whereData = {}
 
-  // if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
   if (sqlCmd.match(/^SELECT|^\(SELECT|^WITH/i)) {
     sql = sqlCmd
     data = dataValues

@@ -307,8 +307,8 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
         rs = db.execute('INSERT INTO "ttest" ("num", "txt") values (2, \'Num Dois\');\n ' +
           'INSERT INTO "ttest" ("num", "txt") values (3, \'Num Tres\')')
-        console.log('\nrs =>', rs)
-        console.log('\nselect * =>', db.execute('SELECT * FROM "ttest"'))
+        // console.log('\nrs =>', rs)
+        // console.log('\nselect * =>', db.execute('SELECT * FROM "ttest"'))
 
         expect(rs.affectedRows).to.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.above(1)
@@ -338,6 +338,35 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         rs = db.update('ttest', { txt: novoValor }, { num: 1 })
         expect(rs.affectedRows).to.be.equal(1)
         expect(db.execute('SELECT * FROM "ttest"').length).to.equal(1)
+      })
+    })
+
+    describe('Binding Array', function() {
+      it('Apagando todos os registros (Delete table)', function() {
+        expect(db.execute('DELETE FROM "ttest"').error).to.be.equal(false)
+      })
+
+      it('Inserindo 3 novos registros', function() {
+        var regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
+
+        expect(db.insert('ttest', regs).error).to.equal(false)
+        expect(rs.error).to.be.equal(false)
+      })
+
+      it('API [select]', function() {
+        rs = db.select('SELECT * FROM "ttest" WHERE "num" IN (:numeros)', { numeros: [11, 12] })
+        expect(rs.length).to.equal(2)
+      })
+
+      it('API [execute]', function() {
+        rs = db.execute('UPDATE "ttest" SET "num" = "num" * :value WHERE "num" IN (:numeros)', { value: 10, numeros: [11, 12] })
+        expect(rs.affectedRows).to.equal(2)
+
+        rs = db.select('SELECT * FROM "ttest" WHERE "num" IN (:numeros)', { numeros: [110, 120] })
+        expect(rs.length).to.equal(2)
+
+        rs = db.select('SELECT * FROM "ttest" WHERE "num" IN (110, 120)')
+        expect(rs.length).to.equal(2)
       })
     })
   })

@@ -2,8 +2,14 @@
   "description": "Módulo de acesso a base de dados relacional",
   "name": "database",
   "path": "dist",
-  "version": "0.2.18",
+  "version": "0.2.20",
   "author": "Nery Jr",
+  "contributors": [
+    "Cleverson Puche",
+    "Bruno Machado",
+    "Leonardo Delfinio",
+    "Luiz Tibo"
+  ],
   "dependencies": {
     "jars": [
       "org.apache.tomcat:tomcat-jdbc:9.0.2",

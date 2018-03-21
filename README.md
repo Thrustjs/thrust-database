@@ -113,3 +113,25 @@ var db = dbm.createDbInstance(dbConfig1)
 var dbConfig2 = getBitcodeConfig('database2')()
 var db = dbm.createDbInstance(dbConfig2)
 ```
+
+## What's new
+
+v0.2.20 - Melhoria: métodos [select] e [execute] para utilizarem _array_
+* Alteração dos métodos [select] e [execute] para utilizarem _array_ na cláusula IN
+* Adição de cenários de testes
+
+v0.2.18 - FIX: Ajustando validação do sqlSelect pra queries que iniciam com WITH
+* Fix: corrigindo método sqlSelect / erro de atribuição na variável 'sql'.
+
+v0.2.17 - FIX SELECT começando com WITH
+* Fix: corrigindo método sqlSelect para aceitar comandos que iniciem com WITH.
+
+v0.2.15 - Melhoria: Eliminando o uso de RegEx para previnir SQL Inject
+* Eliminando o uso de RegEx para previnir SQL Inject nos comandos SQL.
+* Eliminando concateções de strings na formação dos comandos SQL e utilização de _bind_ de parâmetros para todos os comandos.
+
+v0.2.10 - Fix: Previnindo sql inject nas APIs [insert] e [update], corrigindo SQLs com WITH
+
+v.0.2.9 - FIX: Correção/melhoria no método update
+* Correção do método update, para atualizar campo com valor _nulo_
+* Adição de cenários de testes
