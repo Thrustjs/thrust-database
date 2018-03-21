@@ -151,7 +151,6 @@ function bindParams(stmt, params, data) {
 
       // FIX: não deveria considerar NULL ao invés de dar uma exception??
       if (!data.hasOwnProperty(name)) {
-        console.log('params =>', params, '\tdata =>', data)
         throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
       }
 
@@ -263,7 +262,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   var whereData = {}
 
   // if (sqlCmd.substring(0, 6).toUpperCase() === 'SELECT') {
-  if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
+  if (sqlCmd.match(/^SELECT|^\(SELECT|^WITH/i)) {
     sql = sqlCmd
     data = dataValues
   } else {
