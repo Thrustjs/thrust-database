@@ -4,6 +4,9 @@
 var rdbms = 'sqlite'
 var cfgDatabase = getBitcodeConfig('database')()
 var dbConfig = cfgDatabase[rdbms]
+
+dbConfig.dialect = rdbms
+
 var sqls = {
   sqlite: {
     create: 'CREATE TABLE ttest (id INTEGER PRIMARY KEY AUTOINCREMENT, num NUMERIC, txt VARCHAR(64), dat TEXT)'

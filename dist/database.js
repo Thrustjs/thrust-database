@@ -29,7 +29,7 @@ function createDbInstance(options) {
   options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
   var ds = createDataSource(options)
-  var dialect = options.dialect || dialects.postgresql
+  var dialect = options.dialect ? dialects[options.dialect] : dialects.postgresql
   var ctx = {
     dialect: dialect,
     logFunction: options.logFunction

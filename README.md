@@ -116,6 +116,10 @@ var db = dbm.createDbInstance(dbConfig2)
 
 ## What's new
 
+v0.2.22 - Fix: método [createDbInstance] ao selecionar o _dialect_ SQL
+* Correção ao selecionar o _dialect_ SQL. Erro ocorria quando o dialeto era passado via options no
+método [createDbInstance]
+
 v0.2.21 - Fix: método [bindParams] para utilizar _arrays_ em mais de uma cláusula com IN
 * Correção do método [bindParams] ao executar comandos SQL com mais de uma cláusula IN
 * Adição de cenários de testes
