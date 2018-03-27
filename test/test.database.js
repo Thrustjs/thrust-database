@@ -1,7 +1,7 @@
 /**
  * @author Nery Jr
  */
-var rdbms = 'sqlite'
+var rdbms = 'postgresql'
 var cfgDatabase = getBitcodeConfig('database')()
 var dbConfig = cfgDatabase[rdbms]
 
@@ -33,6 +33,7 @@ function log(user, dbFunctionName, statementMethodName, sql) {
 }
 
 // dbConfig.logFunction = log.bind(null, "Nery")
+dbConfig.returnColumnLabel = false
 
 var db = require('database').createDbInstance(dbConfig)
 var majesty = require('majesty')
@@ -87,18 +88,6 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
       it("Executando comando UPDATE table com 'bind' de parâmetros", function() {
         expect(db.execute('UPDATE "ttest" SET "num" = "num" * :value', { value: 10 }).affectedRows).to.equal(7)
-        // show(db.execute("SELECT * FROM "ttest""))
-
-        // expect((rs = db.execute("UPDATE "ttest" SET "num"="num"*10, txt='Trezentos' WHERE "num"=30")).error).to.equal(false)
-        // expect(rs.affectedRows).to.equal(1)
-        // expect(db.execute("SELECT "num", txt FROM "ttest" WHERE "num"=300")[0])
-        //     .to.include({ num: 300, txt: "Trezentos" })
-        // expect(db.execute("SELECT "num", "txt" FROM "ttest" WHERE "num"=300")).to.satisfy(function (rs) {
-        //     return rs && rs.length === 1 && rs[0].num === 300 && rs[0].txt === "Trezentos"
-        // })
-        // expect((rs = db.execute("UPDATE "ttest" SET "num"="num"/10, txt='Num Três' WHERE num=300")).error).to.equal(false)
-        // expect(rs.affectedRows).to.equal(1)
-
         expect(db.execute('UPDATE "ttest" SET "num" = "num" / :value', { value: 10 }).affectedRows).to.equal(7)
       })
 
@@ -171,6 +160,18 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         // expect(JSON.stringify(rs)).to.equal(JSON.stringify([{num: 5, txt: "Num Cinco"}]))
         // expect((rs = db.execute("SELECT num, txt FROM "ttest" WHERE num > 1 ORDER BY num LIMIT 2 OFFSET 2")).length).to.equal(2)
         // expect(JSON.stringify(rs)).to.equal(JSON.stringify([{"num":4,"txt":"Num Quatro"},{"num":5,"txt":"Num Cinco"}]))
+      })
+
+      it('Executando SELECT COUNT(*) table', function() {
+        rs = db.execute('SELECT COUNT(*) AS "total" FROM "ttest"')
+        expect(rs.length).to.equal(1)
+        expect(rs.constructor.name).to.equal('Array')
+        console.log('rs =>', rs)
+
+        expect(rs[0]).to.satisfy(function(rs) {
+          return rs && ((rs.total === 5 && dbConfig.returnColumnLabel === true) ||
+            (dbConfig.returnColumnLabel === false && rs['total'] === 5))
+        })
       })
     })
 
@@ -376,7 +377,7 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
 
       it('API [execute] com vários IN', function() {
         // console.log('\nrs =>', db.execute('SELECT * FROM ttest'))
-        rs = db.execute('SELECT * FROM ttest WHERE id IN (:ids) AND num IN (:nums)', {
+        rs = db.execute('SELECT * FROM "ttest" WHERE "id" IN (:ids) AND "num" IN (:nums)', {
           ids: [1, 2, 3, 4, 5],
           nums: [110, 120]
         })

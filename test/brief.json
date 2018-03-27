@@ -1,6 +1,6 @@
 {
   "description": "Módulo de testes do database",
-  "version": "0.2.22",
+  "version": "0.2.23",
   "author": "Nery Jr",
   "dependencies": {
     "bitcodes": [

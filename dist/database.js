@@ -28,12 +28,12 @@ var dialects = {
 function createDbInstance(options) {
   options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
-  var ds = createDataSource(options)
-  var dialect = options.dialect ? dialects[options.dialect] : dialects.postgresql
   var ctx = {
-    dialect: dialect,
+    returnColumnLabel: options.returnColumnLabel || false,
+    dialect: options.dialect ? dialects[options.dialect] : dialects.postgresql,
     logFunction: options.logFunction
   }
+  var ds = createDataSource(options)
 
   return {
     getInfoColumns: getInfoColumns.bind(ctx, ds),
@@ -207,7 +207,6 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
   var stmt
   var params = []
 
-  // sql = sql.replace(/(:\w+)/g, '?')
   if (data && data.constructor.name === 'Object') {
     var keys = Object.keys(data)
     var placeHolders = sql.match(/:\w+/g) || []
@@ -311,7 +310,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   this.logFunction('execute', 'executeQuery', sql)
   rs = stmt.executeQuery()
 
-  result = fetchRows(rs)
+  result = fetchRows(rs, this.returnColumnLabel)
 
   stmt.close()
   stmt = null
@@ -358,7 +357,7 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
   }
 }
 
-function fetchRows(rs) {
+function fetchRows(rs, returnColumnLabel) {
   var rsmd = rs.getMetaData()
   var numColumns = rsmd.getColumnCount()
   var columns = []
@@ -366,8 +365,11 @@ function fetchRows(rs) {
   var rows = []
 
   for (var cl = 1; cl < numColumns + 1; cl++) {
-    // columns[cl] = rsmd.getColumnLabel(cl)
-    columns[cl] = rsmd.getColumnName(cl)
+    if (returnColumnLabel) {
+      columns[cl] = rsmd.getColumnLabel(cl)
+    } else {
+      columns[cl] = rsmd.getColumnName(cl)
+    }
     types[cl] = rsmd.getColumnType(cl)
   }
 

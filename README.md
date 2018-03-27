@@ -116,6 +116,9 @@ var db = dbm.createDbInstance(dbConfig2)
 
 ## What's new
 
+v0.2.23 - Melhoria: possibilidade de retorno do _column label_ ao invés do _column name_ no retorno dos SELECTs
+* Configuração através do _options_._returnColumnLabel_ no [createDbInstance] o retorno do array de JSON como nome do alias e não da coluna
+
 v0.2.22 - Fix: método [createDbInstance] ao selecionar o _dialect_ SQL
 * Correção ao selecionar o _dialect_ SQL. Erro ocorria quando o dialeto era passado via options no
 método [createDbInstance]
