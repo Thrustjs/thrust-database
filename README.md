@@ -116,6 +116,9 @@ var db = dbm.createDbInstance(dbConfig2)
 
 ## What's new
 
+v0.2.24 - Fix: Caso fosse feito  um select em uma coluna do tipo texto, e o valor fosse um número
+o database convertia o mesmo para número, ajustado para que seja retornada a string.
+
 v0.2.23 - Melhoria: possibilidade de retorno do _column label_ ao invés do _column name_ no retorno dos SELECTs
 * Configuração através do _options_._returnColumnLabel_ no [createDbInstance] o retorno do array de JSON como nome do alias e não da coluna
 

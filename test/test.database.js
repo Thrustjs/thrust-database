@@ -1,7 +1,7 @@
 /**
  * @author Nery Jr
  */
-var rdbms = 'postgresql'
+var rdbms = 'sqlite'
 var cfgDatabase = getBitcodeConfig('database')()
 var dbConfig = cfgDatabase[rdbms]
 
@@ -162,15 +162,24 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         // expect(JSON.stringify(rs)).to.equal(JSON.stringify([{"num":4,"txt":"Num Quatro"},{"num":5,"txt":"Num Cinco"}]))
       })
 
+      it('Validando os tipos retornados', function() {
+        expect((rs = db.execute('INSERT INTO "ttest" ("num", "txt") values (21, \'021\')', null, true)).error).to.equal(false)
+        expect(rs.keys.length).to.equal(1)
+
+        rs = db.execute('SELECT * FROM "ttest" WHERE "num" = :numero', { numero: 21 })
+        expect(rs.length).to.equal(1)
+        expect(typeof rs[0].txt).to.equal('string');
+        expect(typeof rs[0].num).to.equal('number');
+      })
+
       it('Executando SELECT COUNT(*) table', function() {
         rs = db.execute('SELECT COUNT(*) AS "total" FROM "ttest"')
         expect(rs.length).to.equal(1)
         expect(rs.constructor.name).to.equal('Array')
-        console.log('rs =>', rs)
 
         expect(rs[0]).to.satisfy(function(rs) {
-          return rs && ((rs.total === 5 && dbConfig.returnColumnLabel === true) ||
-            (dbConfig.returnColumnLabel === false && rs['total'] === 5))
+          return rs && ((rs.total === 6 && dbConfig.returnColumnLabel === true) ||
+            (dbConfig.returnColumnLabel === false && rs['total'] === 6))
         })
       })
     })

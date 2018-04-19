@@ -1,3 +1,19 @@
+// TODO: Realizar o fetch de forma correta, de acordo com os java.sql.Types
+// numericTypes
+//  -5, 3, 8, 6, 4, 2, 7, 5, -6
+
+// dateTypes
+//     91, 92, 93
+
+// stringTypes
+//     -1, 1, 12, -9, -16
+
+// blobTypes
+//     2004, -2, -4, -3
+
+// clobTypes
+//     2005
+
 var Types = Java.type('java.sql.Types')
 var Statement = Java.type('java.sql.Statement')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
@@ -387,7 +403,9 @@ function fetchRows(rs, returnColumnLabel) {
 
       if (rs.wasNull()) {
         row[columns[nc]] = null
-      } else if ([91, 92, 93].indexOf(types[nc]) >= 0) {
+      } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(types[nc]) >= 0) { //Data
+        row[columns[nc]] = value.toString()
+      } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(types[nc]) >= 0) { //String/char...
         row[columns[nc]] = value.toString()
       } else if (types[nc] === Types.OTHER) { // json in PostgreSQL
         try {
