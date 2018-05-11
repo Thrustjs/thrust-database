@@ -1,0 +1,15 @@
+language: bash 
+services:
+  - docker
+
+before_install:
+  - docker build -t thrust github.com/thrustjs/thrust-docker
+
+script: docker run --rm -v $(pwd):/app -w /app/test thrust /bin/sh -c "thrust install && thrust test.database.js"
+
+deploy:
+  provider: releases
+  api_key: $githubToken
+  skip_cleanup: true
+  on:
+    tags: true

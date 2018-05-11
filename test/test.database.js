@@ -172,14 +172,26 @@ function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
         expect(typeof rs[0].num).to.equal('number');
       })
 
+      it('Validando a integridade de tipos entre select e insert', function() {
+        rs = db.select('SELECT * FROM "ttest" WHERE "num" = :numero', { numero: 21 })
+        expect(rs.length).to.equal(1)
+
+        var row = rs[0];
+        delete row.id;
+
+        rs = db.insert('ttest', row)
+        expect(rs.error).to.equal(false)
+        expect(rs.affectedRows).to.equal(1)
+      })
+
       it('Executando SELECT COUNT(*) table', function() {
         rs = db.execute('SELECT COUNT(*) AS "total" FROM "ttest"')
         expect(rs.length).to.equal(1)
         expect(rs.constructor.name).to.equal('Array')
 
         expect(rs[0]).to.satisfy(function(rs) {
-          return rs && ((rs.total === 6 && dbConfig.returnColumnLabel === true) ||
-            (dbConfig.returnColumnLabel === false && rs['total'] === 6))
+          return rs && ((rs.total === 7 && dbConfig.returnColumnLabel === true) ||
+            (dbConfig.returnColumnLabel === false && rs['total'] === 7))
         })
       })
     })

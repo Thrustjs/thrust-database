@@ -8,7 +8,9 @@
     ],
     "jars": [
       "org.apache.tomcat:tomcat-jdbc:9.0.2",
-      "org.apache.tomcat:tomcat-juli:9.0.2"
+      "org.apache.tomcat:tomcat-juli:9.0.2",
+
+      "org.xerial:sqlite-jdbc:3.21.0.1"
     ]
   }
 }

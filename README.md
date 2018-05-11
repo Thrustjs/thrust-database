@@ -1,4 +1,4 @@
-Database
+Database [![Build Status](https://travis-ci.org/thrust-bitcodes/database.svg?branch=master)](https://travis-ci.org/thrust-bitcodes/database)
 ===============
 
 Database é um *bitcode* de acesso a dados em Bando de Dados Relacional (SQL DB) para [thrust](https://github.com/thrustjs/thrust).
