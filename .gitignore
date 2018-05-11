@@ -9,7 +9,8 @@ idb-3.26.jar
 instantdb.properties
 test.db
 test/test.db
-test/.lib
+test/.lib/jars
+test/.lib/bitcodes/thrust-bitcodes/majesty
 test/test.mv.db
 test/test.trace.db
-.lib
+/.lib
