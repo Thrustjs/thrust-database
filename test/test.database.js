@@ -35,7 +35,7 @@ function log(user, dbFunctionName, statementMethodName, sql) {
 // dbConfig.logFunction = log.bind(null, "Nery")
 dbConfig.returnColumnLabel = false
 
-var db = require('database').createDbInstance(dbConfig)
+var db = require('../dist/index.js').createDbInstance(dbConfig)
 var majesty = require('majesty')
 
 function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
@@ -423,3 +423,5 @@ res.failure.forEach(function(fail) {
 })
 
 // java.lang.Runtime.getRuntime().exec("cmd /k chcp 65001");
+
+exit(res.failure.length);
