@@ -16,9 +16,9 @@
             "maxIdle": 7,
             "minIdle": 3,
             "driverClassName": "org.postgresql.Driver",
-            "urlConnection": "jdbc:postgresql://localhost:5432/softbox",
-            "userName": "softbox",
-            "password": "softbox"
+            "urlConnection": "jdbc:postgresql://localhost:5432/travis_ci_test",
+            "userName": "postgres",
+            "password": ""
         }
     }
 }
