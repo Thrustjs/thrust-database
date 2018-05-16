@@ -1,11 +1,13 @@
 language: bash 
 services:
   - docker
+  - postgresql
 
 before_install:
-  - docker build -t thrust github.com/thrustjs/thrust-docker
+  - psql -c 'create database travis_ci_test;' -U postgres
+  - cp ./test/config.travis.json ./test/config.json
 
-script: docker run --rm -v $(pwd):/app -w /app/test thrust /bin/sh -c "thrust install && thrust test.database.js"
+script: docker run --rm -v $(pwd):/app -w /app/test thrustjs/thrust-docker /bin/sh -c "thrust install && thrust test.js"
 
 deploy:
   provider: releases

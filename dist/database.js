@@ -259,24 +259,26 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
 function sqlInsert(ds, sql, data, returnGeneratedKeys) {
   var cnx, stmt, rsk, rows, affected
 
-  cnx = this.connection || getConnection(ds)
-  stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys)
-  this.logFunction('execute', 'executeUpdate', sql)
-  affected = stmt.executeUpdate()
+  try {
+    cnx = this.connection || getConnection(ds)
+    stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys)
+    this.logFunction('execute', 'executeUpdate', sql)
+    affected = stmt.executeUpdate()
 
-  rsk = stmt.getGeneratedKeys()
-  rows = []
-
-  while (rsk && rsk.next()) {
-    rows.push(rsk.getObject(1))
-  }
-
-  stmt.close()
-  stmt = null
-
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+    rsk = stmt.getGeneratedKeys()
+    rows = []
+  
+    while (rsk && rsk.next()) {
+      rows.push(rsk.getObject(1))
+    }
+  } finally {
+    closeResource(stmt);
+    stmt = null
+  
+    if (!this.connection) {
+      closeResource(cnx);
+      cnx = null
+    }
   }
 
   return {
@@ -320,20 +322,22 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     sql = 'SELECT ' + cols + ' FROM ' + schar + table + ((extraData) ? schar + ' WHERE ' + where : schar)
   }
 
-  cnx = this.connection || getConnection(ds)
-  stmt = prepareStatement(cnx, sql, Object.assign(whereData, data))
+  try {
+    cnx = this.connection || getConnection(ds)
+    stmt = prepareStatement(cnx, sql, Object.assign(whereData, data))
 
-  this.logFunction('execute', 'executeQuery', sql)
-  rs = stmt.executeQuery()
+    this.logFunction('execute', 'executeQuery', sql)
+    rs = stmt.executeQuery()
 
-  result = fetchRows(rs, this.returnColumnLabel)
-
-  stmt.close()
-  stmt = null
-
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+    result = fetchRows(rs, this.returnColumnLabel)
+  } finally {
+    closeResource(stmt)
+    stmt = null
+  
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
 
   return result
@@ -354,17 +358,19 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
     return sqlInsertCtx(sql, data, returnGeneratedKeys)
   }
 
-  cnx = this.connection || getConnection(ds)
-  stmt = prepareStatement(cnx, sql.trim(), data)
-  this.logFunction('execute', 'executeUpdate', sql)
-  result = stmt.executeUpdate()
+  try {
+    cnx = this.connection || getConnection(ds)
+    stmt = prepareStatement(cnx, sql.trim(), data)
+    this.logFunction('execute', 'executeUpdate', sql)
+    result = stmt.executeUpdate()
+  } finally {
+    closeResource(stmt)
+    stmt = null
 
-  stmt.close()
-  stmt = null
-
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
 
   return {
@@ -478,30 +484,32 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
 
   var keys = []
 
-  if (itIsDataArray) {
-    itens.forEach(function(data) {
-      var params = Object.keys(data)
-
-      sql = mountSql(table, params, data)
-      stmt = mountStmt(sql, params, data)
-      logFunction('insert', 'executeUpdate', sql, data)
+  try {
+    if (itIsDataArray) {
+      itens.forEach(function(data) {
+        var params = Object.keys(data)
+  
+        sql = mountSql(table, params, data)
+        stmt = mountStmt(sql, params, data)
+        logFunction('insert', 'executeUpdate', sql, data)
+        affected += stmt.executeUpdate()
+        keys = (returnGeneratedKeys) ? getGeneratedKeys(stmt) : keys
+      })
+    } else {
+      var params = Object.keys(itens)
+  
+      sql = mountSql(table, params, itens)
+      stmt = mountStmt(sql, params, itens)
+      logFunction('insert', 'executeUpdate', sql, itens)
       affected += stmt.executeUpdate()
       keys = (returnGeneratedKeys) ? getGeneratedKeys(stmt) : keys
-    })
-  } else {
-    var params = Object.keys(itens)
-
-    sql = mountSql(table, params, itens)
-    stmt = mountStmt(sql, params, itens)
-    logFunction('insert', 'executeUpdate', sql, itens)
-    affected += stmt.executeUpdate()
-    keys = (returnGeneratedKeys) ? getGeneratedKeys(stmt) : keys
-  }
-
-  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+    }
+  } finally {
+    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
 
   return {
@@ -545,18 +553,22 @@ function tableUpdate(ds, table, row, whereCondition) {
 
   var sql = 'UPDATE ' + schar + table.split(' ')[0] + schar + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
-  var cnx = this.connection || getConnection(ds)
-  var stmt = prepareStatement(cnx, sql, Object.assign({}, setData, whereData))
-  this.logFunction('update', 'executeUpdate', sql)
-  var affected = stmt.executeUpdate()
+  var cnx, stmt, affected;
 
-  stmt.close()
-  stmt = null
-
-  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+  try {
+    cnx = this.connection || getConnection(ds)
+    stmt = prepareStatement(cnx, sql, Object.assign({}, setData, whereData))
+    this.logFunction('update', 'executeUpdate', sql)
+    affected = stmt.executeUpdate()
+  } finally {
+    closeResource(stmt)
+    stmt = null
+  
+    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
 
   return {
@@ -589,18 +601,22 @@ function tableDelete(ds, table, whereCondition) {
 
   var sql = 'DELETE FROM ' + schar + table.split(' ')[0] + ((whereCondition) ? schar + ' WHERE ' + where : schar)
 
-  var cnx = this.connection || getConnection(ds)
-  var stmt = prepareStatement(cnx, sql, whereData)
-  this.logFunction('delete', 'executeUpdate', sql)
-  var affected = stmt.executeUpdate()
+  var cnx, stmt, affected;
 
-  stmt.close()
-  stmt = null
-
-  /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
-  if (!this.connection) {
-    cnx.close()
-    cnx = null
+  try {
+    cnx = this.connection || getConnection(ds)
+    stmt = prepareStatement(cnx, sql, whereData)
+    this.logFunction('delete', 'executeUpdate', sql)
+    affected = stmt.executeUpdate()
+  } finally {
+    closeResource(stmt)
+    stmt = null
+  
+    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
 
   return {
@@ -650,11 +666,17 @@ function executeInSingleTransaction(ds, fncScript, context) {
 
     cnx.rollback()
   } finally {
-    cnx.close()
+    closeResource(cnx)
     cnx = null
   }
 
   return rs
+}
+
+function closeResource(resource) {
+  if (resource != null) {
+    resource.close();
+  }
 }
 
 /**
