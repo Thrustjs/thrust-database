@@ -1,48 +1,48 @@
-  /**
+/**
  * @author Nery Jr
  */
-exports = function (rdbms) {
-  var cfgDatabase = getBitcodeConfig('database')()
-  var dbConfig = cfgDatabase[rdbms]
-
-  dbConfig.dialect = rdbms
-
-  var sqls = {
-    sqlite: {
-      create: 'CREATE TABLE ttest (id INTEGER PRIMARY KEY AUTOINCREMENT, num NUMERIC, txt VARCHAR(64), dat TEXT)'
-    },
-    javadb: {
-      create: 'CREATE TABLE ttest (id INT not null primary key GENERATED ALWAYS AS IDENTITY, num NUMERIC, txt VARCHAR(64), dat DATE)'
-    },
-    h2: {
-      create: 'CREATE TABLE "ttest" ("id" BIGINT AUTO_INCREMENT, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
-    },
-    postgresql: {
-      create: 'CREATE TABLE "ttest" ("id" BIGSERIAL PRIMARY KEY, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
-    }
+var sqls = {
+  sqlite: {
+    create: 'CREATE TABLE ttest (id INTEGER PRIMARY KEY AUTOINCREMENT, num NUMERIC, txt VARCHAR(64), dat TEXT)'
+  },
+  javadb: {
+    create: 'CREATE TABLE ttest (id INT not null primary key GENERATED ALWAYS AS IDENTITY, num NUMERIC, txt VARCHAR(64), dat DATE)'
+  },
+  h2: {
+    create: 'CREATE TABLE "ttest" ("id" BIGINT AUTO_INCREMENT, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
+  },
+  postgresql: {
+    create: 'CREATE TABLE "ttest" ("id" BIGSERIAL PRIMARY KEY, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
   }
+}
 
-  function log(user, dbFunctionName, statementMethodName, sql) {
-    var d = new Date()
+function log(user, dbFunctionName, statementMethodName, sql) {
+  var d = new Date()
 
-    print(d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate(), '|',
-      d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + '.' + d.getMilliseconds(), '|',
-      user, '|', dbFunctionName, '|', statementMethodName, '|',
-      '[' + sql + ']'
-    )
-  }
+  print(d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate(), '|',
+    d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + '.' + d.getMilliseconds(), '|',
+    user, '|', dbFunctionName, '|', statementMethodName, '|',
+    '[' + sql + ']'
+  )
+}
 
-  dbConfig.returnColumnLabel = false
-
-  var db = require('../dist/index.js').createDbInstance(dbConfig)
+exports = function (rdbmsArray) {
+  var dbm = require('../dist/index.js');
   var majesty = require('majesty')
+  var cfgDatabase = getBitcodeConfig('database')()
 
   function exec(describe, it, beforeEach, afterEach, expect, should, assert) {
     var rs
 
-    describe('Testando database com: ' + rdbms, function () {
-
-      describe('Módulo de acesso a base de dados relacional [db]', function () {
+    rdbmsArray.forEach(function (rdbms) {
+      var dbConfig = cfgDatabase[rdbms]
+      
+      var db = dbm.createDbInstance(dbConfig)
+      
+      dbConfig.dialect = rdbms
+      dbConfig.returnColumnLabel = false
+      
+      describe('Módulo de acesso a base de dados relacional | ' + rdbms, function () {
         describe('API [execute]', function () {
           it('Executando comando DML DROP TABLE table', function () {
             // try { db.execute('DROP TABLE ttest') } catch (e) {}
@@ -404,7 +404,8 @@ exports = function (rdbms) {
           })
         })
       })
-    })
+    });
+
   }
 
   var res = majesty.run(exec)
