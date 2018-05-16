@@ -16,7 +16,7 @@
             "maxIdle": 7,
             "minIdle": 3,
             "driverClassName": "org.postgresql.Driver",
-            "urlConnection": "jdbc:postgresql://host.docker.internal/travis_ci_test",
+            "urlConnection": "jdbc:postgresql://localhost/travis_ci_test",
             "userName": "postgres",
             "password": ""
         }
