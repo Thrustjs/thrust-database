@@ -4,6 +4,10 @@ services:
   - docker
   - postgresql
 
+cache:
+  directories:
+    - /test/.lib
+
 before_install:
   - psql -c 'create database travis_ci_test;' -U postgres
   - cp ./test/config.travis.json ./test/config.json
