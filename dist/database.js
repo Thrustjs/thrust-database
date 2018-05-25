@@ -383,7 +383,7 @@ function fetchRows(rs, returnColumnLabel) {
   var rsmd = rs.getMetaData()
   var numColumns = rsmd.getColumnCount()
   var columns = []
-  var types = []
+  var typesInfo = []
   var rows = []
 
   for (var cl = 1; cl < numColumns + 1; cl++) {
@@ -392,7 +392,11 @@ function fetchRows(rs, returnColumnLabel) {
     } else {
       columns[cl] = rsmd.getColumnName(cl)
     }
-    types[cl] = rsmd.getColumnType(cl)
+    
+    typesInfo[cl] = {
+      type: rsmd.getColumnType(cl),
+      typeName: rsmd.getColumnTypeName(cl)
+    }
   }
 
   while (rs.next()) {
@@ -401,7 +405,10 @@ function fetchRows(rs, returnColumnLabel) {
     for (var nc = 1; nc < numColumns + 1; nc++) {
       var value
 
-      if (types[nc] === Types.BINARY) {
+      var type = typesInfo[nc].type;
+      var typeName = typesInfo[nc].typeName;
+
+      if (type === Types.BINARY) {
         value = rs.getBytes(nc)
       } else {
         value = rs.getObject(nc)
@@ -409,11 +416,20 @@ function fetchRows(rs, returnColumnLabel) {
 
       if (rs.wasNull()) {
         row[columns[nc]] = null
-      } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(types[nc]) >= 0) { //Data
+      } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
         row[columns[nc]] = value.toString()
-      } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(types[nc]) >= 0) { //String/char...
+      } else if (Types.LONGVARCHAR == type){
+        if (typeName == 'JSON') {
+          try {
+            value = JSON.parse(value)
+          } catch (error) {
+          }
+        }
+
+        row[columns[nc]] = value
+      } else if ([Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
         row[columns[nc]] = value.toString()
-      } else if (types[nc] === Types.OTHER) { // json in PostgreSQL
+      } else if (type === Types.OTHER) { // json in PostgreSQL
         try {
           row[columns[nc]] = JSON.parse(value)
         } catch (error) {
