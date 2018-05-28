@@ -418,8 +418,10 @@ function fetchRows(rs, returnColumnLabel) {
         row[columns[nc]] = null
       } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
         row[columns[nc]] = value.toString()
-      } else if (Types.LONGVARCHAR == type){
-        if (typeName == 'JSON') {
+      } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
+        value = value.toString()
+
+        if (typeName == 'JSON' ) {
           try {
             value = JSON.parse(value)
           } catch (error) {
@@ -427,8 +429,6 @@ function fetchRows(rs, returnColumnLabel) {
         }
 
         row[columns[nc]] = value
-      } else if ([Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
-        row[columns[nc]] = value.toString()
       } else if (type === Types.OTHER) { // json in PostgreSQL
         try {
           row[columns[nc]] = JSON.parse(value)
