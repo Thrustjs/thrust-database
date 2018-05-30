@@ -352,13 +352,14 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
     sql = sql.trim()
   }
 
-  if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
+  if (sql.match(/^(SELECT|\(SELECT)/i)) {
     return sqlSelectCtx(sql, data)
   } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
     return sqlInsertCtx(sql, data, returnGeneratedKeys)
   }
 
   try {
+
     cnx = this.connection || getConnection(ds)
     stmt = prepareStatement(cnx, sql.trim(), data)
     this.logFunction('execute', 'executeUpdate', sql)

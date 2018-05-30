@@ -36,9 +36,9 @@
             "maxIdle": 7,
             "minIdle": 3,
             "driverClassName": "org.postgresql.Driver",
-            "urlConnection": "jdbc:postgresql://localhost:5432/postgres",
-            "userName": "postgres",
-            "password": "softbox"
+            "urlConnection": "jdbc:postgresql://localhost:5432/example_db",
+            "userName": "example_user",
+            "password": "example_pass"
         }
     }
 }

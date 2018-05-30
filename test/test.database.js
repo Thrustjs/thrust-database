@@ -110,6 +110,23 @@ exports = function (rdbmsArray) {
             // show("Select * => ", db.execute("SELECT * FROM "ttest""))
           })
 
+          if (rdbms == 'postgresql') {
+            it("Executando comando UPDATE com WITH", function () {
+              var sql = 'WITH upsert AS ( \
+                  UPDATE ttest \
+                  SET num = :value \
+                  WHERE id = :id \
+                  RETURNING * \
+              ) \
+              INSERT INTO ttest (num) \
+              SELECT :value \
+              WHERE NOT EXISTS (SELECT * FROM upsert)';
+
+              expect(db.execute(sql, { id: 70, value: 120 }).affectedRows).to.equal(1)
+              expect((rs = db.execute('DELETE FROM "ttest"')).error).to.equal(false)
+            })
+          }
+
           it('Executando comando SELECT table', function () {
             db.execute('INSERT INTO "ttest" ("num", "txt") values (1, \'Num Um\'), ' +
               ' (2, \'Num Dois\'), (3, \'Num Três\'), (4, \'Num Quatro\'), (5, \'Num Cinco\')')
@@ -311,6 +328,20 @@ exports = function (rdbmsArray) {
             expect((rs = db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')).length).to.equal(1)
             expect(rs[0].count).to.equal(1)
           })
+
+          it('Executando transação (sequência de comandos SQL) em um cenário COM exceção (rollback) ', function () {
+            // testando exeções e rollback
+            rs = db.executeInSingleTransaction(function (db, context) {
+              rs = db.execute('UPDATE "tabela_nao_existente" SET "num"=' + context.num + ', "txt" = \'' + context.txt + '\' WHERE "num"=99')
+              rs = db.execute('DELETE FROM "ttest"')
+            }, { num: 999, txt: 'Num Novecenetos e Noventa e Nove' })
+  
+            expect(rs.error).to.equal(true)
+            expect(rs.exception).to.be.defined
+
+            expect((rs = db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')).length).to.equal(1)
+            expect(rs[0].count).to.equal(1)
+          })
         })
 
         describe('Prevenção de [SQL Inject]', function () {
@@ -409,18 +440,5 @@ exports = function (rdbmsArray) {
   }
 
   var res = majesty.run(exec)
-
-  print('', res.success.length, ' scenarios executed with success and')
-  print('', res.failure.length, ' scenarios executed with failure.\n')
-
-  res.failure.forEach(function (fail) {
-    print('[' + fail.scenario + '] =>', fail.execption)
-    var i = 0
-    if (fail.execption.printStackTrace && i === 0) {
-      fail.execption.printStackTrace()
-      i++
-    }
-  })
-
   return res.failure.length;
 }
