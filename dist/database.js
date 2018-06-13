@@ -18,9 +18,14 @@ var Types = Java.type('java.sql.Types')
 var Statement = Java.type('java.sql.Statement')
 var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
-var config = getConfig()
+let dsm;
 
-config.dsm = config.dsm || {}
+try {
+  dsm = database_ds_cache;
+} catch(e) {
+  dsm = {};
+  dangerouslyLoadToGlobal('database_ds_cache', dsm)
+}
 
 var dialects = {
   mysql: {
@@ -99,8 +104,8 @@ function getInfoColumns(ds, table) {
 function createDataSource(options) {
   var urlConnection = options.urlConnection
 
-  if (config.dsm[urlConnection]) {
-    return config.dsm[urlConnection]
+  if (dsm[urlConnection]) {
+    return dsm[urlConnection]
   }
 
   options.logFunction('createDataSource', 'DataSource', urlConnection)
@@ -132,7 +137,7 @@ function createDataSource(options) {
     ds.setPassword(descryptInstance.decrypt(cfg.password))
   }
 
-  config.dsm[urlConnection] = ds
+  dsm[urlConnection] = ds
 
   return ds
 }
@@ -417,6 +422,8 @@ function fetchRows(rs, returnColumnLabel) {
 
       if (rs.wasNull()) {
         row[columns[nc]] = null
+      } else if (value === true || value === false) {
+        row[columns[nc]] = value
       } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
         row[columns[nc]] = value.toString()
       } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
