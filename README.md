@@ -4,6 +4,11 @@ Database
 
 Database é um *bitcode* de acesso a dados em Bando de Dados Relacional (SQL DB) para [thrust](https://github.com/thrustjs/thrust).
 
+#Importante
+
+A partir da versão `0.2.28` o database funciona apenas com o thrust `0.5.0` e acima.
+Para utilizar o database em versões anteriores do thrust, utilize no máximo a versão `0.2.27`
+
 # Instalação
 
 Posicionado em um app [thrust](https://github.com/thrustjs/thrust), no seu terminal:
