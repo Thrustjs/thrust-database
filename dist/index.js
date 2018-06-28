@@ -1,3 +1,6 @@
 exports = require("./database")
 
-exports.dbv1 = require("./dbv1")
+/* coverage ignore if */
+if (!env('CI')) {
+    // exports.dbv1 = require("./dbv1")
+}

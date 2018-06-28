@@ -4,8 +4,9 @@
   "author": "Nery Jr",
   "dependencies": {
     "bitcodes": [
-      "thrust-bitcodes/majesty",
-      "thrust-bitcodes/database"
+      "database",
+      "majesty",
+      "coverage"
     ],
     "jars": [
       "org.xerial:sqlite-jdbc:3.21.0.1",

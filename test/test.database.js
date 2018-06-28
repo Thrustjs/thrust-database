@@ -12,7 +12,7 @@ var sqls = {
     create: 'CREATE TABLE "ttest" ("id" BIGINT AUTO_INCREMENT, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
   },
   postgresql: {
-    create: 'CREATE TABLE "ttest" ("id" BIGSERIAL PRIMARY KEY, "num" NUMERIC, "txt" VARCHAR(64), "dat" TEXT)'
+    create: 'CREATE TABLE "ttest" ("id" BIGSERIAL PRIMARY KEY, "num" NUMERIC, "txt" VARCHAR(64), "dat" timestamp, "boo" bool, "js" json)'
   }
 }
 
@@ -36,16 +36,23 @@ exports = function (rdbmsArray) {
 
     rdbmsArray.forEach(function (rdbms) {
       var dbConfig = cfgDatabase[rdbms]
-      
-      var db = dbm.createDbInstance(dbConfig)
-      
+
       dbConfig.dialect = rdbms
       dbConfig.returnColumnLabel = false
-      
+
+      if (rdbms == 'sqlite') {
+        dbConfig.returnColumnLabel = true;
+      }
+
+      if (env('CI')) {
+        dbConfig.logFunction = log
+      }
+
+      var db = dbm.createDbInstance(dbConfig)
+
       describe('Módulo de acesso a base de dados relacional | ' + rdbms, function () {
         describe('API [execute]', function () {
           it('Executando comando DML DROP TABLE table', function () {
-            // try { db.execute('DROP TABLE ttest') } catch (e) {}
             rs = db.execute('DROP TABLE IF EXISTS "ttest"')
             expect(rs.error).to.equal(false)
           })
@@ -73,8 +80,6 @@ exports = function (rdbmsArray) {
             expect(rs.affectedRows).to.equal(7)
             expect((rs = db.execute('UPDATE "ttest" SET "num" = "num" * 10, "txt"=\'Trezentos\' WHERE "num"=30')).error).to.equal(false)
             expect(rs.affectedRows).to.equal(1)
-            // expect(db.execute('SELECT num, txt FROM "ttest" WHERE num=300')[0])
-            //   .to.include({ num: 300, txt: 'Trezentos' })
             expect(db.execute('SELECT "num", "txt" FROM "ttest" WHERE "num"=300')).to.satisfy(function (rs) {
               return rs && rs.length === 1 && parseInt(rs[0].num) === 300 && rs[0].txt === 'Trezentos'
             })
@@ -101,13 +106,14 @@ exports = function (rdbmsArray) {
           })
 
           it("Executando DELETE table com 'bind' de parâmetros", function () {
+            expect(db.execute('DELETE FROM "ttest" WHERE "num" = :num', { num: 99.5 }).affectedRows).to.equal(0)
+
             expect(db.execute('DELETE FROM "ttest" WHERE "num" = :num OR "id" = :id', { num: 3, id: 20 }).affectedRows).to.equal(1)
 
             expect(db.execute('INSERT INTO "ttest" ("num", "txt") values (8, \'Num Oito\')').error).to.equal(false)
             expect(db.execute('DELETE FROM "ttest" WHERE "num" = :num OR "id" = :id', { num: 8, id: 7 }).affectedRows).to.equal(2)
 
             expect((rs = db.execute('DELETE FROM "ttest"')).error).to.equal(false)
-            // show("Select * => ", db.execute("SELECT * FROM "ttest""))
           })
 
           if (rdbms == 'postgresql') {
@@ -142,57 +148,52 @@ exports = function (rdbmsArray) {
             expect(rs.length).to.equal(1)
 
             rs = db.select('ttest', [], { num: 2, txt: 'Num Dois' })
-            // print('rs =>', JSON.stringify(rs))
             expect(rs).to.satisfy(function (rs) {
               return rs && rs.length === 1 && parseInt(rs[0].num) === 2 && rs[0].txt === 'Num Dois'
             })
 
             rs = db.select('ttest', ['num'], { num: 2, txt: 'Num Dois' })
-            // print('rs =>', JSON.stringify(rs))
             expect(rs).to.satisfy(function (rs) {
               return rs && rs.length === 1 && parseInt(rs[0].num) === 2 && rs[0].txt === undefined
             })
 
             rs = db.select('ttest', ['num'])
-            // print('\nrs =>', JSON.stringify(rs))
             expect(rs.length).to.be.above(1)
             expect(rs.length).to.be.equal(5)
 
             rs = db.select('ttest')
-            // print('\nrs =>', JSON.stringify(rs))
             expect(rs.length).to.be.above(1)
             expect(rs.length).to.be.equal(5)
-
-            // expect((rs = db.execute("SELECT COUNT(*) as count FROM "ttest"")).length).to.equal(1)
-            // expect(rs[0].count).to.equal(5)
-            // expect((rs = db.execute("SELECT num, txt FROM "ttest" ORDER BY num LIMIT 2")).length).to.equal(2)
-            // expect(JSON.stringify(rs[0])).to.equal(JSON.stringify({num: 1, txt: "Num Um"}))
-            // expect(JSON.stringify(rs[1])).to.equal(JSON.stringify({num: 2, txt: "Num Dois"}))
-            // expect((rs = db.execute("SELECT num, txt FROM "ttest" ORDER BY num LIMIT 2 OFFSET 2")).length).to.equal(2)
-            // expect(JSON.stringify(rs[0])).to.equal(JSON.stringify({num: 3, txt: "Num Três"}))
-            // expect(JSON.stringify(rs[1])).to.equal(JSON.stringify({num: 4, txt: "Num Quatro"}))
-            // expect((rs = db.execute("SELECT num, txt FROM "ttest" ORDER BY num LIMIT 2 OFFSET 4")).length).to.equal(1)
-            // expect(JSON.stringify(rs)).to.equal(JSON.stringify([{num: 5, txt: "Num Cinco"}]))
-            // expect((rs = db.execute("SELECT num, txt FROM "ttest" WHERE num > 1 ORDER BY num LIMIT 2 OFFSET 2")).length).to.equal(2)
-            // expect(JSON.stringify(rs)).to.equal(JSON.stringify([{"num":4,"txt":"Num Quatro"},{"num":5,"txt":"Num Cinco"}]))
           })
 
           it('Validando os tipos retornados', function () {
-            expect((rs = db.execute('INSERT INTO "ttest" ("num", "txt") values (21, \'021\')', null, true)).error).to.equal(false)
+            if (rdbms == 'postgresql') {
+              expect((rs = db.execute('INSERT INTO "ttest" ("num", "txt", "boo", "dat", "js") values (21, \'021\', true, :data, :js)', { data: new Date(), js: { value: 1 } }, true)).error).to.equal(false)
+            } else {
+              expect((rs = db.execute('INSERT INTO "ttest" ("num", "txt", "dat") values (21, \'021\', :data)', { data: new Date() }, true)).error).to.equal(false)
+            }
+
             expect(rs.keys.length).to.equal(1)
 
             rs = db.execute('SELECT * FROM "ttest" WHERE "num" = :numero', { numero: 21 })
             expect(rs.length).to.equal(1)
             expect(typeof rs[0].txt).to.equal('string');
             expect(typeof rs[0].num).to.equal('number');
+            expect(typeof rs[0].dat).to.equal('string');
+
+            if (rdbms == 'postgresql') {
+              expect(typeof rs[0].boo).to.equal('boolean');
+              expect(typeof rs[0].js).to.equal('object');
+            }
           })
 
           it('Validando a integridade de tipos entre select e insert', function () {
-            rs = db.select('SELECT * FROM "ttest" WHERE "num" = :numero', { numero: 21 })
+            rs = db.select('SELECT * FROM "ttest" WHERE "num" = :numero OR "dat" = :data', { numero: 21, data: new Date() })
             expect(rs.length).to.equal(1)
 
             var row = rs[0];
             delete row.id;
+            delete row.dat; // Data está sendo carregada como string...
 
             rs = db.insert('ttest', row)
             expect(rs.error).to.equal(false)
@@ -235,7 +236,6 @@ exports = function (rdbmsArray) {
             var regs = [{ num: 10, txt: 'Num Dez' }, { num: 11, txt: 'Num Onze' }, { num: 12, txt: 'Num Doze' }]
 
             expect(db.insert('ttest', regs).error).to.equal(false)
-            // expect(rs.keys.length).to.above(0)
             expect(db.execute('SELECT * FROM "ttest"').length).to.equal(6)
 
             regs = [{ num: 13 }, { txt: 'Num Quatorze' }, { num: 15, txt: 'Num Quinze' }]
@@ -247,7 +247,6 @@ exports = function (rdbmsArray) {
 
         describe('API [update]', function () {
           it('Alterando registro(s) da tabela UPDATE table (com where)', function () {
-            // expect(db.update('ttest', { num: 100, txt: 'Num Cem' }, { num: 10 }).error).to.equal(false)
             rs = db.update('ttest', { num: 100, txt: 'Num Cem' }, { num: 10 })
             expect(rs.error).to.equal(false)
             expect(rs.affectedRows).to.equal(1)
@@ -309,7 +308,6 @@ exports = function (rdbmsArray) {
 
             expect(rs.error).to.equal(false)
             expect(db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99').length).to.equal(1)
-            // show(db.execute('SELECT COUNT(*) as count FROM "ttest" WHERE "num"=99'))
             expect(db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')[0].count).to.equal(1)
           })
 
@@ -321,6 +319,7 @@ exports = function (rdbmsArray) {
               if (true)
                 throw { error: true }
 
+              /* coverage ignore next */
               rs = db.execute('DELETE FROM "ttest"')
             }, { num: 999, txt: 'Num Novecenetos e Noventa e Nove' })
 
@@ -333,9 +332,11 @@ exports = function (rdbmsArray) {
             // testando exeções e rollback
             rs = db.executeInSingleTransaction(function (db, context) {
               rs = db.execute('UPDATE "tabela_nao_existente" SET "num"=' + context.num + ', "txt" = \'' + context.txt + '\' WHERE "num"=99')
+
+              /* coverage ignore next */
               rs = db.execute('DELETE FROM "ttest"')
             }, { num: 999, txt: 'Num Novecenetos e Noventa e Nove' })
-  
+
             expect(rs.error).to.equal(true)
             expect(rs.exception).to.be.defined
 
@@ -361,15 +362,9 @@ exports = function (rdbmsArray) {
 
             rs = db.execute('INSERT INTO "ttest" ("num", "txt") values (2, \'Num Dois\');\n ' +
               'INSERT INTO "ttest" ("num", "txt") values (3, \'Num Tres\')')
-            // console.log('\nrs =>', rs)
-            // console.log('\nselect * =>', db.execute('SELECT * FROM "ttest"'))
 
             expect(rs.affectedRows).to.equal(1)
             expect(db.execute('SELECT * FROM "ttest"').length).to.above(1)
-            // .to.satisfy(function(rs) {
-            //   // não insere as tuplas: erro de SQL Injection
-            //   return rs.error === true && rs.message === 'Attempt sql injection!'
-            // })
           })
 
           it('Utilizando API [insert]', function () {
@@ -397,7 +392,6 @@ exports = function (rdbmsArray) {
 
         describe('Binding Array', function () {
           it('Apagando todos os registros (Delete table)', function () {
-            // expect(db.execute('DELETE FROM "ttest"').error).to.be.equal(false)
             expect(db.execute('DROP TABLE IF EXISTS "ttest"').error).to.be.equal(false)
             expect(db.execute(sqls[rdbms].create).error).to.equal(false)
           })
@@ -426,12 +420,43 @@ exports = function (rdbmsArray) {
           })
 
           it('API [execute] com vários IN', function () {
-            // console.log('\nrs =>', db.execute('SELECT * FROM ttest'))
             rs = db.execute('SELECT * FROM "ttest" WHERE "id" IN (:ids) AND "num" IN (:nums)', {
               ids: [1, 2, 3, 4, 5],
               nums: [110, 120]
             })
+
             expect(rs.length).to.equal(2)
+          })
+        })
+
+        describe('API geral', function () {
+          it('Testando API getInfoColumns', function () {
+            let firstCol = db.getInfoColumns('ttest')[0];
+            let expected;
+
+            if (rdbms === 'postgresql') {
+              expected = {
+                'name': 'id',
+                'dataType': '-5',
+                'size': '19',
+                'decimalDigits': '0',
+                'isNullable': 'NO',
+                'isAutoIncrment': 'YES',
+                'ordinalPosition': '1'
+              }
+            } else {
+              expected = {
+                'name': 'id',
+                'dataType': '4',
+                'size': '2000000000',
+                'decimalDigits': '10',
+                'isNullable': 'YES',
+                'isAutoIncrment': 'YES',
+                'ordinalPosition': '1'
+              }
+            }
+
+            expect(firstCol).to.nested.include(expected);
           })
         })
       })
@@ -439,6 +464,5 @@ exports = function (rdbmsArray) {
 
   }
 
-  var res = majesty.run(exec)
-  return res.failure.length;
+  return majesty.run(exec).failure.length;
 }

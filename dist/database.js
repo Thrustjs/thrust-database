@@ -22,32 +22,36 @@ let dsm;
 
 try {
   dsm = database_ds_cache;
-} catch(e) {
+} catch (e) {
   dsm = {};
   dangerouslyLoadToGlobal('database_ds_cache', dsm)
 }
 
 var dialects = {
   mysql: {
+    name: 'mysql',
     scapeChar: '`',
     stringDelimiter: "'"
   },
   postgresql: {
+    name: 'postgresql',
     scapeChar: '"',
     stringDelimiter: "'"
   },
   sqlite: {
+    name: 'sqlite',
     scapeChar: '"',
     stringDelimiter: "'"
   },
   h2: {
+    name: 'h2',
     scapeChar: '"',
     stringDelimiter: "'"
   }
 }
 
 function createDbInstance(options) {
-  options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
+  options.logFunction = options.logFunction || function (dbFunctionName, statementMethodName, sql) { }
 
   var ctx = {
     returnColumnLabel: options.returnColumnLabel || false,
@@ -74,36 +78,49 @@ function createDbInstance(options) {
 }
 
 function getInfoColumns(ds, table) {
-  var cnx = getConnection(ds)
-  var databaseMetaData = cnx.getMetaData()
-  var infosCols = databaseMetaData.getColumns(null, null, table, null)
-  var cols = []
+  var cnx;
 
-  while (infosCols.next()) {
-    var column = {}
+  try {
+    cnx = this.connection || getConnection(ds)
 
-    column.name = infosCols.getString('COLUMN_NAME')
-    column.dataType = infosCols.getString('DATA_TYPE')
-    column.size = infosCols.getString('COLUMN_SIZE')
-    column.decimalDigits = infosCols.getString('DECIMAL_DIGITS')
-    column.isNullable = infosCols.getString('IS_NULLABLE')
-    column.isAutoIncrment = infosCols.getString('IS_AUTOINCREMENT')
-    column.ordinalPosition = infosCols.getString('ORDINAL_POSITION')
-    column.isGeneratedColumn = infosCols.getString('IS_GENERATEDCOLUMN')
+    var databaseMetaData = cnx.getMetaData()
+    var infosCols = databaseMetaData.getColumns(null, null, table, null)
+    var dialect = this.dialect.name;
 
-    cols.push(column)
-    // print(JSON.stringify(column))
+    var cols = []
+
+    while (infosCols.next()) {
+      var column = {}
+
+      column.name = infosCols.getString('COLUMN_NAME')
+      column.dataType = infosCols.getString('DATA_TYPE')
+      column.size = infosCols.getString('COLUMN_SIZE')
+      column.decimalDigits = infosCols.getString('DECIMAL_DIGITS')
+      column.isNullable = infosCols.getString('IS_NULLABLE')
+      column.isAutoIncrment = infosCols.getString('IS_AUTOINCREMENT')
+      column.ordinalPosition = infosCols.getString('ORDINAL_POSITION')
+
+      if (dialect !== 'postgresql') {
+        column.isGeneratedColumn = infosCols.getString('IS_GENERATEDCOLUMN')
+      }
+
+      cols.push(column)
+    }
+
+    return cols
+  } finally {
+    /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
+    if (!this.connection) {
+      closeResource(cnx)
+      cnx = null
+    }
   }
-
-  cnx.close()
-  cnx = null
-
-  return cols
 }
 
 function createDataSource(options) {
   var urlConnection = options.urlConnection
 
+  /* coverage ignore if */
   if (dsm[urlConnection]) {
     return dsm[urlConnection]
   }
@@ -128,6 +145,7 @@ function createDataSource(options) {
   ds.setMaxIdle(cfg.maxIdle)
   ds.setMinIdle(cfg.minIdle)
 
+  /* coverage ignore else */
   if (!cfg.decryptClassName) {
     ds.setPassword(cfg.password)
   } else {
@@ -152,12 +170,13 @@ function createDataSource(options) {
 function getConnection(ds, autoCommit) {
   var connection = ds.getConnection()
 
+  /* coverage ignore next */
   connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
 
   return connection
 }
 
-function setParameter(stmt, col, value) {
+function setParameter(stmt, col, value, dialect) {
   if (value === undefined || value === null) {
     stmt.setObject(col, null)
   } else {
@@ -183,18 +202,32 @@ function setParameter(stmt, col, value) {
         break
 
       case 'Blob':
+        /* coverage ignore next */
         stmt.setBinaryStream(col, value.fis, value.size)
+        /* coverage ignore next */
         break
-
+      
       default:
-        stmt.setObject(col, value)
+        if (dialect && dialect.name == 'postgresql' && value.constructor.name == 'Object') {
+          var jsonObject = new org.postgresql.util.PGobject();
+
+          jsonObject.setType("json");
+          jsonObject.setValue(JSON.stringify(value));
+
+          stmt.setObject(col, jsonObject)
+        } else {
+          /* coverage ignore next */
+          stmt.setObject(col, value)
+        }
+
         break
     }
   }
 }
 
-function bindParams(stmt, params, data) {
+function bindParams(stmt, params, data, dialect) {
   var arrInc = 0
+
   if (params && data && data.constructor.name === 'Object') {
     for (var index in params) {
       index = Number(index)
@@ -202,6 +235,8 @@ function bindParams(stmt, params, data) {
       var name = params[index]
 
       // FIX: não deveria considerar NULL ao invés de dar uma exception??
+      // Nos casos existentes até o momento, o params e o data nunca terão informações diferentes
+      /* coverage ignore if */
       if (!data.hasOwnProperty(name)) {
         throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
       }
@@ -210,13 +245,13 @@ function bindParams(stmt, params, data) {
       var col = index + 1
 
       if (value && value.constructor.name === 'Array') {
-        value.forEach(function(arrValue) {
-          setParameter(stmt, col + arrInc, arrValue)
+        value.forEach(function (arrValue) {
+          setParameter(stmt, col + arrInc, arrValue, dialect)
           arrInc++
         })
         arrInc = (arrInc > 0) ? --arrInc : arrInc
       } else {
-        setParameter(stmt, col + arrInc, value)
+        setParameter(stmt, col + arrInc, value, dialect)
       }
     }
   }
@@ -224,7 +259,7 @@ function bindParams(stmt, params, data) {
   return stmt
 }
 
-function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
+function prepareStatement(cnx, sql, data, returnGeneratedKeys, dialect) {
   var stmt
   var params = []
 
@@ -232,7 +267,7 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
     var keys = Object.keys(data)
     var placeHolders = sql.match(/:\w+/g) || []
 
-    placeHolders.forEach(function(namedParam) {
+    placeHolders.forEach(function (namedParam) {
       var name = namedParam.slice(1)
 
       if (keys.indexOf(name) >= 0) {
@@ -240,11 +275,11 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
       }
     })
 
-    params.forEach(function(namedParam) {
+    params.forEach(function (namedParam) {
       var val = data[namedParam]
 
       if (val && val.constructor.name === 'Array') {
-        var questionArray = val.map(function() {
+        var questionArray = val.map(function () {
           return '?'
         })
         sql = sql.replace(':' + namedParam, questionArray.join(','))
@@ -258,7 +293,7 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys) {
     ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
     : cnx.prepareStatement(sql)
 
-  return bindParams(stmt, params, data)
+  return bindParams(stmt, params, data, dialect)
 }
 
 function sqlInsert(ds, sql, data, returnGeneratedKeys) {
@@ -266,20 +301,20 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
   try {
     cnx = this.connection || getConnection(ds)
-    stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys)
+    stmt = prepareStatement(cnx, sql, data, returnGeneratedKeys, this.dialect)
     this.logFunction('execute', 'executeUpdate', sql)
     affected = stmt.executeUpdate()
 
     rsk = stmt.getGeneratedKeys()
     rows = []
-  
+
     while (rsk && rsk.next()) {
       rows.push(rsk.getObject(1))
     }
   } finally {
     closeResource(stmt);
     stmt = null
-  
+
     if (!this.connection) {
       closeResource(cnx);
       cnx = null
@@ -338,7 +373,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
   } finally {
     closeResource(stmt)
     stmt = null
-  
+
     if (!this.connection) {
       closeResource(cnx)
       cnx = null
@@ -398,7 +433,7 @@ function fetchRows(rs, returnColumnLabel) {
     } else {
       columns[cl] = rsmd.getColumnName(cl)
     }
-    
+
     typesInfo[cl] = {
       type: rsmd.getColumnType(cl),
       typeName: rsmd.getColumnTypeName(cl)
@@ -411,6 +446,7 @@ function fetchRows(rs, returnColumnLabel) {
     for (var nc = 1; nc < numColumns + 1; nc++) {
       var value
 
+      var name = columns[nc];
       var type = typesInfo[nc].type;
       var typeName = typesInfo[nc].typeName;
 
@@ -421,32 +457,33 @@ function fetchRows(rs, returnColumnLabel) {
       }
 
       if (rs.wasNull()) {
-        row[columns[nc]] = null
+        row[name] = null
       } else if (value === true || value === false) {
-        row[columns[nc]] = value
+        row[name] = value
       } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
-        row[columns[nc]] = value.toString()
+        row[name] = value.toString()
       } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
         value = value.toString()
 
-        if (typeName == 'JSON' ) {
+        /* Tipo JSON no MySQL */
+        if (typeName == 'JSON') {
           try {
             value = JSON.parse(value)
           } catch (error) {
           }
         }
 
-        row[columns[nc]] = value
+        row[name] = value
       } else if (type === Types.OTHER) { // json in PostgreSQL
         try {
-          row[columns[nc]] = JSON.parse(value)
+          row[name] = JSON.parse(value)
         } catch (error) {
-          row[columns[nc]] = value
+          row[name] = value
         }
       } else if (!isNaN(value)) {
-        row[columns[nc]] = Number(value)
+        row[name] = Number(value)
       } else {
-        row[columns[nc]] = value
+        row[name] = value
       }
     }
 
@@ -465,7 +502,8 @@ function fetchRows(rs, returnColumnLabel) {
  */
 function tableInsert(ds, table, itens, returnGeneratedKeys) {
   var logFunction = this.logFunction
-  var schar = this.dialect.scapeChar
+  var dialect = this.dialect;
+  var schar = dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
   var cnx = this.connection || getConnection(ds)
   var affected = 0
@@ -474,7 +512,7 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
   var itIsDataArray = (itens.constructor.name === 'Array')
 
   function mountSql(table, params, data) {
-    var placeHolders = Array.apply(null, new Array(params.length)).map(function() { return '?' })
+    var placeHolders = Array.apply(null, new Array(params.length)).map(function () { return '?' })
 
     return ['INSERT INTO ', schar, table, schar,
       ' (', schar, params.join(schar + ', ' + schar), schar, ')',
@@ -487,7 +525,7 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
       ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
       : cnx.prepareStatement(sql)
 
-    bindParams(stmt, params, data)
+    bindParams(stmt, params, data, dialect)
 
     return stmt
   }
@@ -510,9 +548,9 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
 
   try {
     if (itIsDataArray) {
-      itens.forEach(function(data) {
+      itens.forEach(function (data) {
         var params = Object.keys(data)
-  
+
         sql = mountSql(table, params, data)
         stmt = mountStmt(sql, params, data)
         logFunction('insert', 'executeUpdate', sql, data)
@@ -521,7 +559,7 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
       })
     } else {
       var params = Object.keys(itens)
-  
+
       sql = mountSql(table, params, itens)
       stmt = mountStmt(sql, params, itens)
       logFunction('insert', 'executeUpdate', sql, itens)
@@ -587,7 +625,7 @@ function tableUpdate(ds, table, row, whereCondition) {
   } finally {
     closeResource(stmt)
     stmt = null
-  
+
     /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
     if (!this.connection) {
       closeResource(cnx)
@@ -635,7 +673,7 @@ function tableDelete(ds, table, whereCondition) {
   } finally {
     closeResource(stmt)
     stmt = null
-  
+
     /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
     if (!this.connection) {
       closeResource(cnx)
@@ -712,52 +750,52 @@ function Blob(fis, size) {
   this.size = size
 }
 
-function hookErrorFunc(error) {
-  var st = error.getStackTrace()
-  var regex = /.*jdk\.nashorn\.internal\.scripts\.Script\$Recompilation.*\^eval?\\_\.(\w+)\(<eval>.*<eval>?:(\d+)\)$/g;
-  var groups
-  var errorDB
+// function hookErrorFunc(error) {
+//   var st = error.getStackTrace()
+//   var regex = /.*jdk\.nashorn\.internal\.scripts\.Script\$Recompilation.*\^eval?\\_\.(\w+)\(<eval>.*<eval>?:(\d+)\)$/g;
+//   var groups
+//   var errorDB
 
-  for (var i = 0; i < st.length; i++) {
-    var trace = st[i]
+//   for (var i = 0; i < st.length; i++) {
+//     var trace = st[i]
 
-    if ((groups = regex.exec(trace)) !== undefined) {
-      break
-    }
-  }
+//     if ((groups = regex.exec(trace)) !== undefined) {
+//       break
+//     }
+//   }
 
-  errorDB = new Error([
-    '[thrust] ', scriptInfo.scriptFile, '_.', groups[1], ' #' + groups[2], '\n' + error.toString()].join(''),
-    scriptInfo.scriptFile + ' =>  _.' + groups[1],
-    groups[2]
-  )
-  errorDB.stackTrace = Java.from(st)
+//   errorDB = new Error([
+//     '[thrust] ', scriptInfo.scriptFile, '_.', groups[1], ' #' + groups[2], '\n' + error.toString()].join(''),
+//     scriptInfo.scriptFile + ' =>  _.' + groups[1],
+//     groups[2]
+//   )
+//   errorDB.stackTrace = Java.from(st)
 
-  return errorDB
-}
+//   return errorDB
+// }
 
-var hookFunction = function(options) {
-  var target = createDbInstance(options)
-  var hook = {}
+// var hookFunction = function (options) {
+//   var target = createDbInstance(options)
+//   var hook = {}
 
-  Object.getOwnPropertyNames(target).forEach(function(prop) {
-    // print('PROP =>', prop)
+//   Object.getOwnPropertyNames(target).forEach(function (prop) {
+//     // print('PROP =>', prop)
 
-    if (target[prop].constructor.name === 'Function') {
-      hook[prop] = function() {
-        try {
-          return target[prop].apply(null, arguments)
-        } catch (error) {
-          throw hookErrorFunc(error)
-        }
-      }
-    } else {
-      hook[prop.name] = prop
-    }
-  })
+//     if (target[prop].constructor.name === 'Function') {
+//       hook[prop] = function () {
+//         try {
+//           return target[prop].apply(null, arguments)
+//         } catch (error) {
+//           throw hookErrorFunc(error)
+//         }
+//       }
+//     } else {
+//       hook[prop.name] = prop
+//     }
+//   })
 
-  return hook
-}
+//   return hook
+// }
 
 exports = {
   // createDbInstance: hookFunction

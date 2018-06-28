@@ -12,3 +12,4 @@ test/test.db
 test/test.mv.db
 test/test.trace.db
 .lib
+coverage
