@@ -5,8 +5,8 @@
   "dependencies": {
     "bitcodes": [
       "database",
-      "majesty",
-      "coverage"
+      "majesty@0.1.5",
+      "coverage@0.0.2"
     ],
     "jars": [
       "org.xerial:sqlite-jdbc:3.21.0.1",
