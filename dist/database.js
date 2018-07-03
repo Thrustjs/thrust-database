@@ -56,7 +56,8 @@ function createDbInstance(options) {
   var ctx = {
     returnColumnLabel: options.returnColumnLabel || false,
     dialect: options.dialect ? dialects[options.dialect] : dialects.postgresql,
-    logFunction: options.logFunction
+    logFunction: options.logFunction,
+    dateAsString: options.hasOwnProperty('dateAsString') ? options.dateAsString : false
   }
   var ds = createDataSource(options)
 
@@ -206,7 +207,7 @@ function setParameter(stmt, col, value, dialect) {
         stmt.setBinaryStream(col, value.fis, value.size)
         /* coverage ignore next */
         break
-      
+
       default:
         if (dialect && dialect.name == 'postgresql' && value.constructor.name == 'Object') {
           var jsonObject = new org.postgresql.util.PGobject();
@@ -369,7 +370,7 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
     this.logFunction('execute', 'executeQuery', sql)
     rs = stmt.executeQuery()
 
-    result = fetchRows(rs, this.returnColumnLabel)
+    result = fetchRows(rs, this.returnColumnLabel, this.dateAsString)
   } finally {
     closeResource(stmt)
     stmt = null
@@ -420,7 +421,7 @@ function sqlExecute(ds, sql, data, returnGeneratedKeys) {
   }
 }
 
-function fetchRows(rs, returnColumnLabel) {
+function fetchRows(rs, returnColumnLabel, dateAsString) {
   var rsmd = rs.getMetaData()
   var numColumns = rsmd.getColumnCount()
   var columns = []
@@ -461,7 +462,11 @@ function fetchRows(rs, returnColumnLabel) {
       } else if (value === true || value === false) {
         row[name] = value
       } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
-        row[name] = value.toString()
+        if (dateAsString) {
+          row[name] = value.toString()
+        } else {
+          row[name] = new Date(Number(value.getTime()))
+        }
       } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
         value = value.toString()
 

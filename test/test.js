@@ -1,7 +1,7 @@
 var coverage = require('coverage');
 var testDatabases = require('./test.database.js');
 
-const MIN_COVERAGE = 94;
+const MIN_COVERAGE = 95;
 
 coverage.init({
     ignore: [

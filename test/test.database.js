@@ -177,13 +177,17 @@ exports = function (rdbmsArray) {
 
             rs = db.execute('SELECT * FROM "ttest" WHERE "num" = :numero', { numero: 21 })
             expect(rs.length).to.equal(1)
+
             expect(typeof rs[0].txt).to.equal('string');
             expect(typeof rs[0].num).to.equal('number');
-            expect(typeof rs[0].dat).to.equal('string');
 
             if (rdbms == 'postgresql') {
               expect(typeof rs[0].boo).to.equal('boolean');
               expect(typeof rs[0].js).to.equal('object');
+              
+              expect(rs[0].dat.constructor.name).to.equal('Date');
+            } else {
+              expect(typeof rs[0].dat).to.equal('string');
             }
           })
 

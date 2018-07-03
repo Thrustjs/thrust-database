@@ -5,6 +5,7 @@
             "maxActive": 15,
             "maxIdle": 7,
             "minIdle": 3,
+            "dateAsString": true,
             "driverClassName": "org.sqlite.JDBC",
             "urlConnection": "jdbc:sqlite:test.db",
             "userName": "",
