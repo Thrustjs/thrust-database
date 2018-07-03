@@ -462,6 +462,7 @@ function fetchRows(rs, returnColumnLabel, dateAsString) {
       } else if (value === true || value === false) {
         row[name] = value
       } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
+        /* coverage ignore if */
         if (dateAsString) {
           row[name] = value.toString()
         } else {
