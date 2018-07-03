@@ -83,6 +83,7 @@ As propriedades abaixo devem ser configuradas no arquivo *config.json*:
     'urlConnection': /*String Url de conexão com o banco*/,
     'userName': /*String Usuário do banco*/,
     'password': /*String Senha do banco*/,
+    'dateAsString': /*Boolean Determina se campos do tipo data serão considerados como string (Default: false) */
 
     /* As configurações abaixo são opcionais
     e possuem os defaults apresentados*/
