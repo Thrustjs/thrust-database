@@ -486,7 +486,7 @@ function fetchRows(rs, returnColumnLabel, dateAsString) {
         } catch (error) {
           row[name] = value
         }
-      } else if (!isNaN(value)) {
+      } else if (!isNaN(Number(value))) {
         row[name] = Number(value)
       } else {
         row[name] = value

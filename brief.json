@@ -2,7 +2,7 @@
   "description": "Módulo de acesso a base de dados relacional",
   "name": "database",
   "path": "dist",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "Nery Jr",
   "contributors": [
     "Cleverson Puche",

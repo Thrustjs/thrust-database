@@ -10,7 +10,7 @@ var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
 var ds = (function() {
   var config = getConfig()
 
-  if (config.database) {
+  if (config.database && config.database.userName && config.database.password && config.database.urlConnection) {
     var cfg = Object.assign({
       initialSize: 5,
       maxActive: 15,

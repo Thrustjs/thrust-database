@@ -342,7 +342,7 @@ exports = function (rdbmsArray) {
             }, { num: 999, txt: 'Num Novecenetos e Noventa e Nove' })
 
             expect(rs.error).to.equal(true)
-            expect(rs.exception).to.be.defined
+            expect(rs.exception).to.not.be.undefined
 
             expect((rs = db.execute('SELECT COUNT(*) as "count" FROM "ttest" WHERE "num"=99')).length).to.equal(1)
             expect(rs[0].count).to.equal(1)
