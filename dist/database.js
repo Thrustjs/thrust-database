@@ -53,7 +53,7 @@ const dialects = {
   }
 }
 
-const createDbInstance = (options) => {
+function createDbInstance(options) {
   options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
   const ctx = {
@@ -248,10 +248,11 @@ function bindParams(stmt, params, data, dialect) {
       const col = index + 1
 
       if (value && value.constructor.name === 'Array') {
-        value.forEach((arrValue) => {
+        const setValueArrValue = function(arrValue) {
           setParameter(stmt, col + arrInc, arrValue, dialect)
           arrInc++
-        })
+        }
+        value.forEach(setValueArrValue)
         arrInc = (arrInc > 0) ? --arrInc : arrInc
       } else {
         setParameter(stmt, col + arrInc, value, dialect)
@@ -282,7 +283,9 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys, dialect) {
       const val = data[namedParam]
 
       if (val && val.constructor.name === 'Array') {
-        const questionArray = val.map(() => '?')
+        const questionArray = val.map(function() {
+          return '?'
+        })
         sql = sql.replace(':' + namedParam, questionArray.join(','))
       } else {
         sql = sql.replace(':' + namedParam, '?')

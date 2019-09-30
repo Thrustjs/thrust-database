@@ -77,7 +77,6 @@ const db = {
       rs.result = fncScript({ execute: execute, insert: insert, 'delete': deleteFnc, update: update, deleteByExample: deleteByExample }, context)
       connection.commit()
     } catch (ex) {
-      // print("Exception => ", ex)
       connection.rollback()
       rs = { error: true, execption: ex }
     } finally {
