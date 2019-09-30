@@ -1,24 +1,21 @@
 /** @ignore */
-var Statement = Java.type("java.sql.Statement")
-var Timestamp = Java.type("java.sql.Timestamp")
+const Statement = Java.type('java.sql.Statement')
+const Timestamp = Java.type('java.sql.Timestamp')
+const Types = Java.type('java.sql.Types')
+const DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 
-// loadJar("./jarlib/tomcat-jdbc-9.0.2.jar")
-// loadJar("./jarlib/tomcat-juli-9.0.2.jar")
-
-var DataSource = Java.type("org.apache.tomcat.jdbc.pool.DataSource")
-
-var ds = (function() {
-  var config = getConfig()
+const ds = (function() {
+  const config = getConfig()
 
   if (config.database && config.database.userName && config.database.password && config.database.urlConnection) {
-    var cfg = Object.assign({
+    const cfg = Object.assign({
       initialSize: 5,
       maxActive: 15,
       maxIdle: 7,
       minIdle: 3
     }, config.database)
 
-    var ds = new DataSource()
+    const ds = new DataSource()
     ds.setDriverClassName(cfg.driverClassName)
     ds.setUrl(cfg.urlConnection)
     ds.setUsername(cfg.userName)
@@ -28,13 +25,8 @@ var ds = (function() {
     ds.setMaxIdle(cfg.maxIdle)
     ds.setMinIdle(cfg.minIdle)
 
-    // log.info("db connection pool initialized.")
-    // ds.setInitSQL("SET application_name = 'my-app'")
-    // ds.setValidationQuery("select 1")
-
     return ds
-  } else
-    return null
+  } else { return null }
 })()
 
 /**
@@ -45,7 +37,7 @@ var ds = (function() {
  * @desc Agrupa funcionalidades relativas a base de dados relacional.
  * @namespace db
  */
-var db = {
+const db = {
 
   /**
    * Executa uma função dentro de uma única transação.
@@ -55,8 +47,8 @@ var db = {
    * @returns {Object}
    */
   executeInSingleTransaction: function(fncScript, context) {
-    var rs = { error: false }
-    var connection = db.getConnection()
+    let rs = { error: false }
+    let connection = db.getConnection()
 
     function execute(sql, args) {
       return db.execute(sql, args, connection)
@@ -71,7 +63,7 @@ var db = {
     }
 
     var deleteFnc = function(table, row) {
-      return db["delete"](table, row, connection)
+      return db['delete'](table, row, connection)
     }
 
     var deleteByExample = function(table, row) {
@@ -82,7 +74,7 @@ var db = {
 
     try {
       connection.setAutoCommit(false)
-      rs.result = fncScript({ execute: execute, insert: insert, "delete": deleteFnc, update: update, deleteByExample: deleteByExample }, context)
+      rs.result = fncScript({ execute: execute, insert: insert, 'delete': deleteFnc, update: update, deleteByExample: deleteByExample }, context)
       connection.commit()
     } catch (ex) {
       // print("Exception => ", ex)
@@ -121,9 +113,9 @@ var db = {
    * <i>true<i> ou <i>false<i> de acordo com o resultado da execu&ccedil;&atilde;o do comando SQL.
    */
   execute: function(sql, args, connection) {
-    var result
-    var conn = connection || db.getConnection(true)
-    var hasSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
+    let result
+    const conn = connection || db.getConnection(true)
+    const hasSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
     if (hasSqlInject == null) {
       var stmt = db.createPrepareStatement(sql, conn)
@@ -154,17 +146,10 @@ var db = {
    * @returns {PrepareStatment} - Objetos com métodos execute e executeRows.
    */
   createPrepareStatement: function(sql, connection) {
-
     var DBPrepareStatement = function() {
-      /*this.mustCloseTransation = transaction == undefined ? true : false;*/
-      /*this.transaction = transaction  || db.getTransaction(true);
-      var conn = this.transaction.getConnection();*/
-
-      var conn = connection || db.getConnection(true)
-      var generateKeys = Statement.RETURN_GENERATED_KEYS
-
+      const conn = connection || db.getConnection(true)
       this.sql = sql.trim()
-      this.stmt = conn.prepareStatement(sql, generateKeys)
+      this.stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
     }
 
     DBPrepareStatement.prototype = PrepareStatment
@@ -183,24 +168,24 @@ var db = {
    * Para inserção de um único item retorna o id do item inserido.
    */
   insert: function(table, itens, connection) {
-    var conn = connection || db.getConnection(true)
+    const conn = connection || db.getConnection(true)
 
-    var sqlInsert = 'INSERT INTO ' + table + ' ('
-    var values = ' VALUES ('
-    var vrg = "",
-      vals = []
+    let sqlInsert = 'INSERT INTO ' + table + ' ('
+    let values = ' VALUES ('
+    let vrg = ''
 
-    if (itens.constructor.name == "Object")
-      itens = [itens || {}]
+    const vals = []
+
+    if (itens.constructor.name === 'Object') { itens = [itens || {}] }
 
     itens.forEach(function(tupla, idx) {
       var props = []
       for (var key in tupla) {
         props.push(tupla[key])
-        if (idx == 0) {
+        if (idx === 0) {
           sqlInsert += vrg + key
-          values += vrg + "?"
-          vrg = ","
+          values += vrg + '?'
+          vrg = ','
         }
       }
       vals.push(props)
@@ -208,11 +193,12 @@ var db = {
 
     sqlInsert += ') ' + values + ')'
 
-    var result, stmt = db.createPrepareStatement(sqlInsert, conn)
-    if (vals.length > 1)
+    var result; var stmt = db.createPrepareStatement(sqlInsert, conn)
+    if (vals.length > 1) {
       result = stmt.executeRows(vals)
-    else
+    } else {
       result = stmt.execute(vals[0])
+    }
     stmt.close()
     stmt = null
 
@@ -223,9 +209,7 @@ var db = {
     }
 
     return result
-
   },
-
 
   /**
    * Atualiza dados da tabela no banco.
@@ -240,28 +224,29 @@ var db = {
    * linhas afetadas.
    */
   update: function(table, row, where, connection) {
-    var conn = connection || db.getConnection(true)
+    let conn = connection || db.getConnection(true)
 
-    var sql = 'UPDATE ' + table + ' SET '
-    var vrg = '',
-      vals = []
+    let sql = 'UPDATE ' + table + ' SET '
+    let vrg = ''
+
+    let vals = []
     for (var key in row) {
       vals.push(row[key])
       sql += vrg + key + ' = ? '
       vrg = ','
     }
 
-    var and = ' '
+    let and = ' '
     sql += ' WHERE '
     if (where) {
       for (var wkey in where) {
-        sql += and + wkey + " = ? "
-        and = " AND "
+        sql += and + wkey + ' = ? '
+        and = ' AND '
         vals.push(where[wkey])
       }
     } else {
       this.keys.forEach(function(key) {
-        sql += key + " = " + (row[key] || null)
+        sql += key + ' = ' + (row[key] || null)
       })
     }
 
@@ -301,7 +286,7 @@ var db = {
       sql += ' AND ' + key + '= ?'
     }
 
-    var stmt = db.createPrepareStatement(sql, connection, java.sql.Statement.NO_GENERATED_KEYS)
+    var stmt = db.createPrepareStatement(sql, connection, Statement.NO_GENERATED_KEYS)
     var result = stmt.execute(vals)
     stmt.close()
     stmt = null
@@ -321,16 +306,16 @@ var db = {
    * @param {Transaction} transaction - Transação na qual seráo realizados os comandos no banco de dados.
    * @returns Informa o status da execução do comando e a quantidade de linhas afetadas.
    */
-  "delete": function(table, row, connection) {
+  'delete': function(table, row, connection) {
     var vals = {}
     this.keys.forEach(function(key) {
       vals[key] = (row[key] != null ? row[key] : null)
     })
-    return this.deleteByExample(table, vals, connection, java.sql.Statement.NO_GENERATED_KEYS)
+    return this.deleteByExample(table, vals, connection, Statement.NO_GENERATED_KEYS)
   }
 }
 
-//..........................................................................................................................
+// ..........................................................................................................................
 
 /**
  * @class PrepareStatment
@@ -338,7 +323,7 @@ var db = {
  * @ignore
  */
 var PrepareStatment = {
-  /*stmt: conn.prepareStatement(sql, generateKeys),*/
+  /* stmt: conn.prepareStatement(sql, generateKeys), */
   stmt: null,
 
   /**
@@ -350,7 +335,7 @@ var PrepareStatment = {
    */
   execute: function(args) {
     args = args || []
-
+    let result
     var hasSqlInject = this.sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
     if (hasSqlInject != null) {
@@ -363,9 +348,9 @@ var PrepareStatment = {
     for (var i = 0; i < args.length; i++) {
       if (args[i] == null) {
         this.stmt.setObject(i + 1, args[i])
-      } else if (args[i].constructor.name == "Date") {
+      } else if (args[i].constructor.name === 'Date') {
         this.stmt.setTimestamp(i + 1, new Timestamp(args[i].getTime()))
-      } else if (args[i].constructor.name === "Blob") {
+      } else if (args[i].constructor.name === 'Blob') {
         this.stmt.setBinaryStream(i + 1, args[i].fis, args[i].size)
       } else {
         this.stmt.setObject(i + 1, args[i])
@@ -373,7 +358,7 @@ var PrepareStatment = {
     }
     var rows = []
 
-    if (this.sql.toUpperCase().indexOf("SELECT") == 0) {
+    if (this.sql.toUpperCase().indexOf('SELECT') === 0) {
       var rs = this.stmt.executeQuery()
       var rsmd = rs.getMetaData()
       var numColumns = rsmd.getColumnCount()
@@ -390,9 +375,9 @@ var PrepareStatment = {
         var row = {}
 
         for (var nc = 1; nc < numColumns + 1; nc++) {
-          var value
+          let value
 
-          if (types[nc] === java.sql.Types.BINARY) {
+          if (types[nc] === Types.BINARY) {
             value = rs.getBytes(nc)
           } else {
             value = rs.getObject(nc)
@@ -403,7 +388,7 @@ var PrepareStatment = {
             row[columns[nc]] = null
           } else if ([91, 92, 93].indexOf(types[nc]) >= 0) {
             row[columns[nc]] = value.toString()
-          } else if (types[nc] == java.sql.Types.OTHER) { // json in PostgreSQL
+          } else if (types[nc] === Types.OTHER) { // json in PostgreSQL
             try {
               row[columns[nc]] = JSON.parse(value)
             } catch (error) {
@@ -412,34 +397,17 @@ var PrepareStatment = {
           } else {
             row[columns[nc]] = value
           }
-
-          /*
-          if ([-5,-2,3,8,6,4,2,7].indexOf(types[nc]) >= 0) {
-              row[columns[nc]] = (rs.wasNull()) ? null : new Number(value);
-              print("Number: " + row[columns[nc]]);
-          } else if ([1,-16,-4,-1,-15,-3,12].indexOf(types[nc]) >= 0) {
-              row[columns[nc]] = (rs.wasNull()) ? null : value.toString();
-              print("String: " + row[columns[nc]]);
-          } else {
-              row[columns[nc]] = (rs.wasNull()) ? null : value;
-          }
-          */
-        } //end for
+        } // end for
 
         rows.push(row)
       }
       return rows
-
-    } else if (this.sql.toUpperCase().indexOf("INSERT") == 0) {
+    } else if (this.sql.toUpperCase().indexOf('INSERT') === 0) {
       this.stmt.executeUpdate()
 
       var rsk = this.stmt.getGeneratedKeys()
 
       while (rsk.next()) {
-        // var key = rsk.getObject(1);
-        // rows = {
-        // 	"id": parseInt(key.toString())
-        // };
         rows.push(rsk.getObject(1))
       }
       return {
@@ -447,7 +415,7 @@ var PrepareStatment = {
         keys: rows
       }
     } else {
-      var result = this.stmt.executeUpdate()
+      result = this.stmt.executeUpdate()
       return {
         error: false,
         affectedRows: result
@@ -472,11 +440,11 @@ var PrepareStatment = {
     if (hasSqlInject != null) {
       return [{
         error: true,
-        message: "Attempt sql injection!"
+        message: 'Attempt sql injection!'
       }]
     }
 
-    if (this.sql.trim().toUpperCase().indexOf("SELECT") == 0) {
+    if (this.sql.trim().toUpperCase().indexOf('SELECT') === 0) {
       args.forEach(function(row) {
         rows.push(this.execute(row))
       })
@@ -487,16 +455,16 @@ var PrepareStatment = {
         for (var j = 0; j < args[i].length; j++) {
           if (args[i][j] == null) {
             this.stmt.setObject(j + 1, args[i][j])
-          } else if (args[i][j].constructor.name == "Date") {
-            this.stmt.setTimestamp(j + 1, new java.sql.Timestamp(args[i][j].getTime()))
-          } else if (args[i].constructor.name === "Blob") {
+          } else if (args[i][j].constructor.name === 'Date') {
+            this.stmt.setTimestamp(j + 1, new Timestamp(args[i][j].getTime()))
+          } else if (args[i].constructor.name === 'Blob') {
             this.stmt.setBinaryStream(i + 1, args[i].fis, args[i].size)
           } else {
             this.stmt.setObject(j + 1, args[i][j])
           }
         }
         this.stmt.addBatch()
-        if ((i + 1) % 100 == 0) {
+        if ((i + 1) % 100 === 0) {
           this.stmt.executeBatch()
         }
       }
@@ -508,12 +476,12 @@ var PrepareStatment = {
             error: false,
             affectedRows: rsk[key]
           })
-        } else if (rsk[key] == java.sql.Statement.SUCCESS_NO_INFO) {
+        } else if (rsk[key] === Statement.SUCCESS_NO_INFO) {
           rows.push({
             error: false,
-            affectedRows: "unknown"
+            affectedRows: 'unknown'
           })
-        } else if (rsk[key] == java.sql.Statement.EXECUTE_FAILED) {
+        } else if (rsk[key] === Statement.EXECUTE_FAILED) {
           rows.push({
             error: true,
             affectedRows: 0
@@ -532,7 +500,7 @@ var PrepareStatment = {
   }
 }
 
-//..........................................................................................................................
+// ..........................................................................................................................
 
 /**
  * @class Table
@@ -545,7 +513,7 @@ var PrepareStatment = {
  */
 db.Table = function(tblName, keys) {
   this.tableName = tblName
-  this.keys = keys || ["id"]
+  this.keys = keys || ['id']
 }
 
 /**
@@ -557,8 +525,8 @@ db.Table = function(tblName, keys) {
  * <i>true</i> ou <i>false</i> de acordo com o resultado da execução do comando SQL.
  */
 db.Table.execute = function(sql, transaction) {
-  //java.lang.System.out.println(sql)
-  var stmt = db.createPrepareStatement(sql, transaction, java.sql.Statement.NO_GENERATED_KEYS)
+  // java.lang.System.out.println(sql)
+  var stmt = db.createPrepareStatement(sql, transaction, Statement.NO_GENERATED_KEYS)
   var result = stmt.execute()
   stmt.close()
   return result
@@ -573,14 +541,15 @@ db.Table.execute = function(sql, transaction) {
 db.Table.prototype.replace = function(tupla, transaction) {
   var sqlReplace = 'REPLACE INTO ' + this.tableName + ' ('
   var values = ' VALUES ('
-  var vrg = "",
-    vals = []
+  var vrg = ''
+
+  var vals = []
 
   for (var key in tupla) {
     vals.push(tupla[key])
     sqlReplace += vrg + key
-    values += vrg + "?"
-    vrg = ","
+    values += vrg + '?'
+    vrg = ','
   }
   sqlReplace += ') ' + values + ')'
   var stmt = db.createPrepareStatement(sqlReplace, transaction)
@@ -598,23 +567,23 @@ db.Table.prototype.replace = function(tupla, transaction) {
  * indicam para cada item o resultado da execução do comando na base e a quantidade de linhas afetadas.
  * Para inserção de um único item retorna o id do item inserido.
  */
-db.Table.prototype.insert = function(itens, transaction) { //}, returnGeneratedKey=true) {
+db.Table.prototype.insert = function(itens, transaction) { // }, returnGeneratedKey=true) {
   var sqlInsert = 'INSERT INTO ' + this.tableName + ' ('
   var values = ' VALUES ('
-  var vrg = "",
-    vals = []
+  var vrg = ''
 
-  if (itens.constructor.name == "Object")
-    itens = [itens || {}]
+  var vals = []
+
+  if (itens.constructor.name === 'Object') { itens = [itens || {}] }
 
   itens.forEach(function(tupla, idx) {
     var props = []
     for (var key in tupla) {
       props.push(tupla[key])
-      if (idx == 0) {
+      if (idx === 0) {
         sqlInsert += vrg + key
-        values += vrg + "?"
-        vrg = ","
+        values += vrg + '?'
+        vrg = ','
       }
     }
     vals.push(props)
@@ -622,12 +591,8 @@ db.Table.prototype.insert = function(itens, transaction) { //}, returnGeneratedK
 
   sqlInsert += ') ' + values + ')'
 
-
-  var result, stmt = db.createPrepareStatement(sqlInsert, transaction)
-  if (vals.length > 1)
-    result = stmt.executeRows(vals)
-  else
-    result = stmt.execute(vals[0])
+  var result; var stmt = db.createPrepareStatement(sqlInsert, transaction)
+  if (vals.length > 1) { result = stmt.executeRows(vals) } else { result = stmt.execute(vals[0]) }
   stmt.close()
   return result
 }
@@ -645,8 +610,9 @@ db.Table.prototype.insert = function(itens, transaction) { //}, returnGeneratedK
  */
 db.Table.prototype.update = function(row, where, transaction) {
   var sql = 'UPDATE ' + this.tableName + ' SET '
-  var vrg = '',
-    vals = []
+  var vrg = ''
+
+  var vals = []
   for (var key in row) {
     vals.push(row[key])
     sql += vrg + key + ' = ? '
@@ -657,13 +623,13 @@ db.Table.prototype.update = function(row, where, transaction) {
   sql += ' WHERE '
   if (where) {
     for (var wkey in where) {
-      sql += and + wkey + " = ? "
-      and = " AND "
+      sql += and + wkey + ' = ? '
+      and = ' AND '
       vals.push(where[wkey])
     }
   } else {
     this.keys.forEach(function(key) {
-      sql += key + " = " + (row[key] || null)
+      sql += key + ' = ' + (row[key] || null)
     })
   }
 
@@ -692,7 +658,7 @@ db.Table.prototype.deleteByExample = function(row, transaction) {
     sql += ' AND ' + key + '= ?'
   }
 
-  var stmt = db.createPrepareStatement(sql, transaction, java.sql.Statement.NO_GENERATED_KEYS)
+  var stmt = db.createPrepareStatement(sql, transaction, Statement.NO_GENERATED_KEYS)
   var result = stmt.execute(vals)
   stmt.close()
   return result
@@ -704,12 +670,12 @@ db.Table.prototype.deleteByExample = function(row, transaction) {
  * @param {Transaction} transaction - Transação na qual seráo realizados os comandos no banco de dados.
  * @returns Informa o status da execução do comando e a quantidade de linhas afetadas.
  */
-db.Table.prototype["delete"] = function(row, transaction) {
+db.Table.prototype['delete'] = function(row, transaction) {
   var vals = {}
   this.keys.forEach(function(key) {
     vals[key] = (row[key] != null ? row[key] : null)
   })
-  return this.deleteByExample(vals, transaction, java.sql.Statement.NO_GENERATED_KEYS)
+  return this.deleteByExample(vals, transaction, Statement.NO_GENERATED_KEYS)
 }
 
 /**
@@ -737,21 +703,21 @@ db.Table.prototype.selectByKey = function(row) {
  */
 db.Table.prototype.selectByExample = function(row, transaction) {
   var sql = 'SELECT * FROM ' + this.tableName + ' WHERE 1=1 '
-  var _and_ = ' AND '
+  var and = ' AND '
   var vals = []
 
   for (var key in row) {
     var val = row[key]
     vals.push(val)
-    var op = "="
+    var op = '='
     if (val == null) {
-      op = " is "
-    } else if (val.constructor.name == "String" && val.indexOf('%') >= 0) {
-      op = " like "
+      op = ' is '
+    } else if (val.constructor.name === 'String' && val.indexOf('%') >= 0) {
+      op = ' like '
     }
-    sql += _and_ + key + op + " ? "
+    sql += and + key + op + ' ? '
   }
-  var stmt = db.Database.createPrepareStatement(sql, transaction, java.sql.Statement.NO_GENERATED_KEYS)
+  var stmt = db.Database.createPrepareStatement(sql, transaction, Statement.NO_GENERATED_KEYS)
   var result = stmt.execute(vals)
   stmt.close()
   return result
@@ -769,7 +735,7 @@ db.Table.prototype.search = db.Table.prototype.selectByExample
  */
 db.Table.prototype.all = function(transaction) {
   var sql = 'SELECT * FROM ' + this.tableName
-  var stmt = db.Database.createPrepareStatement(sql, transaction, java.sql.Statement.NO_GENERATED_KEYS)
+  var stmt = db.Database.createPrepareStatement(sql, transaction, Statement.NO_GENERATED_KEYS)
   var result = stmt.execute()
 
   stmt.close()
@@ -785,6 +751,5 @@ function Blob(fis, size) {
   this.fis = fis
   this.size = size
 }
-
 
 exports = db
