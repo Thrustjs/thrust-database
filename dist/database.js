@@ -1,25 +1,13 @@
-// TODO: Realizar o fetch de forma correta, de acordo com os java.sql.Types
-// numericTypes
-//  -5, 3, 8, 6, 4, 2, 7, 5, -6
-
-// dateTypes
-//     91, 92, 93
-
-// stringTypes
-//     -1, 1, 12, -9, -16
-
-// blobTypes
-//     2004, -2, -4, -3
-
-// clobTypes
-//     2005
+/* jshint asi: true */
 
 const Types = Java.type('java.sql.Types')
 const Statement = Java.type('java.sql.Statement')
 const DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
 const JTimestamp = Java.type('java.sql.Timestamp')
 
-const localResource = {}
+const localResource = {
+  version: '0.3.2'
+}
 
 try {
   localResource.dsm = database_ds_cache || {}
@@ -231,6 +219,13 @@ function setParameter(stmt, col, value, dialect) {
 function bindParams(stmt, params, data, dialect) {
   let arrInc = 0
 
+  const setValueArrValue = function(col) {
+    return function(arrValue) {
+      setParameter(stmt, col + arrInc, arrValue, dialect)
+      arrInc++
+    }
+  }
+
   if (params && data && data.constructor.name === 'Object') {
     for (var index in params) {
       index = Number(index)
@@ -248,11 +243,7 @@ function bindParams(stmt, params, data, dialect) {
       const col = index + 1
 
       if (value && value.constructor.name === 'Array') {
-        const setValueArrValue = function(arrValue) {
-          setParameter(stmt, col + arrInc, arrValue, dialect)
-          arrInc++
-        }
-        value.forEach(setValueArrValue)
+        value.forEach(setValueArrValue(col))
         arrInc = (arrInc > 0) ? --arrInc : arrInc
       } else {
         setParameter(stmt, col + arrInc, value, dialect)
@@ -293,9 +284,7 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys, dialect) {
     })
   }
 
-  stmt = (returnGeneratedKeys)
-    ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-    : cnx.prepareStatement(sql)
+  stmt = (returnGeneratedKeys) ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) : cnx.prepareStatement(sql)
 
   return bindParams(stmt, params, data, dialect)
 }
@@ -530,12 +519,8 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
   }
 
   function mountStmt(sql, params, data) {
-    stmt = (returnGeneratedKeys)
-      ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-      : cnx.prepareStatement(sql)
-
+    stmt = (returnGeneratedKeys) ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) : cnx.prepareStatement(sql)
     bindParams(stmt, params, data, dialect)
-
     return stmt
   }
 
@@ -738,7 +723,6 @@ function executeInSingleTransaction(ds, fncScript, context) {
     cnx.rollback()
   } finally {
     closeResource(cnx)
-    cnx = null
   }
 
   return rs
@@ -751,5 +735,6 @@ function closeResource(resource) {
 }
 
 exports = {
-  createDbInstance
+  createDbInstance: createDbInstance,
+  version: localResource.version
 }

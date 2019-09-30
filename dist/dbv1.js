@@ -1,4 +1,5 @@
 /** @ignore */
+/* jshint asi: true */
 const Statement = Java.type('java.sql.Statement')
 const Timestamp = Java.type('java.sql.Timestamp')
 const Types = Java.type('java.sql.Types')
@@ -113,7 +114,7 @@ const db = {
    */
   execute: function(sql, args, connection) {
     let result
-    const conn = connection || db.getConnection(true)
+    let conn = connection || db.getConnection(true)
     const hasSqlInject = sql.match(/[\t\r\n]|(--[^\r\n]*)|(\/\*[\w\W]*?(?=\*)\*\/)/gi)
 
     if (hasSqlInject == null) {
@@ -167,7 +168,7 @@ const db = {
    * Para inserção de um único item retorna o id do item inserido.
    */
   insert: function(table, itens, connection) {
-    const conn = connection || db.getConnection(true)
+    let conn = connection || db.getConnection(true)
 
     let sqlInsert = 'INSERT INTO ' + table + ' ('
     let values = ' VALUES ('

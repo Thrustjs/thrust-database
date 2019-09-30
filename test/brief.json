@@ -4,7 +4,6 @@
   "author": "Nery Jr",
   "dependencies": {
     "bitcodes": [
-      "database",
       "majesty@0.1.5",
       "coverage@0.0.2"
     ],
