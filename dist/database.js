@@ -1,33 +1,24 @@
-// TODO: Realizar o fetch de forma correta, de acordo com os java.sql.Types
-// numericTypes
-//  -5, 3, 8, 6, 4, 2, 7, 5, -6
+/* jshint asi: true */
 
-// dateTypes
-//     91, 92, 93
+const Types = Java.type('java.sql.Types')
+const Statement = Java.type('java.sql.Statement')
+const DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
+const JTimestamp = Java.type('java.sql.Timestamp')
 
-// stringTypes
-//     -1, 1, 12, -9, -16
-
-// blobTypes
-//     2004, -2, -4, -3
-
-// clobTypes
-//     2005
-
-var Types = Java.type('java.sql.Types')
-var Statement = Java.type('java.sql.Statement')
-var DataSource = Java.type('org.apache.tomcat.jdbc.pool.DataSource')
-
-let dsm;
-
-try {
-  dsm = database_ds_cache;
-} catch (e) {
-  dsm = {};
-  dangerouslyLoadToGlobal('database_ds_cache', dsm)
+const localResource = {
+  version: '0.3.2'
 }
 
-var dialects = {
+try {
+  localResource.dsm = database_ds_cache || {}
+} catch (e) {
+  localResource.dsm = {}
+  if (typeof dangerouslyLoadToGlobal === 'function') {
+    dangerouslyLoadToGlobal('database_ds_cache', localResource.dsm)
+  }
+}
+
+const dialects = {
   mysql: {
     name: 'mysql',
     scapeChar: '`',
@@ -51,15 +42,15 @@ var dialects = {
 }
 
 function createDbInstance(options) {
-  options.logFunction = options.logFunction || function (dbFunctionName, statementMethodName, sql) { }
+  options.logFunction = options.logFunction || function(dbFunctionName, statementMethodName, sql) { }
 
-  var ctx = {
+  const ctx = {
     returnColumnLabel: options.returnColumnLabel || false,
     dialect: options.dialect ? dialects[options.dialect] : dialects.postgresql,
     logFunction: options.logFunction,
     dateAsString: options.hasOwnProperty('dateAsString') ? options.dateAsString : false
   }
-  var ds = createDataSource(options)
+  const ds = createDataSource(options)
 
   return {
     getInfoColumns: getInfoColumns.bind(ctx, ds),
@@ -79,19 +70,19 @@ function createDbInstance(options) {
 }
 
 function getInfoColumns(ds, table) {
-  var cnx;
+  let cnx
 
   try {
     cnx = this.connection || getConnection(ds)
 
-    var databaseMetaData = cnx.getMetaData()
-    var infosCols = databaseMetaData.getColumns(null, null, table, null)
-    var dialect = this.dialect.name;
+    const databaseMetaData = cnx.getMetaData()
+    const infosCols = databaseMetaData.getColumns(null, null, table, null)
+    const dialect = this.dialect.name
 
-    var cols = []
+    const cols = []
 
     while (infosCols.next()) {
-      var column = {}
+      const column = {}
 
       column.name = infosCols.getString('COLUMN_NAME')
       column.dataType = infosCols.getString('DATA_TYPE')
@@ -107,7 +98,6 @@ function getInfoColumns(ds, table) {
 
       cols.push(column)
     }
-
     return cols
   } finally {
     /* se a transação não existia e foi criada, precisa ser fechada para retornar ao pool */
@@ -119,17 +109,17 @@ function getInfoColumns(ds, table) {
 }
 
 function createDataSource(options) {
-  var urlConnection = options.urlConnection
+  const urlConnection = options.urlConnection
 
   /* coverage ignore if */
-  if (dsm[urlConnection]) {
-    return dsm[urlConnection]
+  if (localResource.dsm[urlConnection]) {
+    return localResource.dsm[urlConnection]
   }
 
   options.logFunction('createDataSource', 'DataSource', urlConnection)
 
-  var ds = new DataSource()
-  var cfg = Object.assign({
+  const ds = new DataSource()
+  const cfg = Object.assign({
     'initialSize': 5,
     'maxActive': 15,
     'maxIdle': 7,
@@ -156,7 +146,7 @@ function createDataSource(options) {
     ds.setPassword(descryptInstance.decrypt(cfg.password))
   }
 
-  dsm[urlConnection] = ds
+  localResource.dsm[urlConnection] = ds
 
   return ds
 }
@@ -169,7 +159,7 @@ function createDataSource(options) {
  * @returns {Connection}
  */
 function getConnection(ds, autoCommit) {
-  var connection = ds.getConnection()
+  const connection = ds.getConnection()
 
   /* coverage ignore next */
   connection.setAutoCommit((autoCommit !== undefined) ? autoCommit : true)
@@ -199,7 +189,7 @@ function setParameter(stmt, col, value, dialect) {
         break
 
       case 'Date':
-        stmt.setTimestamp(col, new java.sql.Timestamp(value.getTime()))
+        stmt.setTimestamp(col, new JTimestamp(value.getTime()))
         break
 
       case 'Blob':
@@ -209,25 +199,32 @@ function setParameter(stmt, col, value, dialect) {
         break
 
       default:
-        if (dialect && dialect.name == 'postgresql' && value.constructor.name == 'Object') {
-          var jsonObject = new org.postgresql.util.PGobject();
+        if (dialect && dialect.name === 'postgresql' && value.constructor.name === 'Object') {
+          const JPGObject = Java.type('org.postgresql.util.PGobject')
+          var jsonObject = new JPGObject()
 
-          jsonObject.setType("json");
-          jsonObject.setValue(JSON.stringify(value));
+          jsonObject.setType('json')
+          jsonObject.setValue(JSON.stringify(value))
 
           stmt.setObject(col, jsonObject)
         } else {
           /* coverage ignore next */
           stmt.setObject(col, value)
         }
-
         break
     }
   }
 }
 
 function bindParams(stmt, params, data, dialect) {
-  var arrInc = 0
+  let arrInc = 0
+
+  const setValueArrValue = function(col) {
+    return function(arrValue) {
+      setParameter(stmt, col + arrInc, arrValue, dialect)
+      arrInc++
+    }
+  }
 
   if (params && data && data.constructor.name === 'Object') {
     for (var index in params) {
@@ -235,21 +232,18 @@ function bindParams(stmt, params, data, dialect) {
 
       var name = params[index]
 
-      // FIX: não deveria considerar NULL ao invés de dar uma exception??
+      // FIX: não deveria considerar NULL ao invés de dar uma exception?
       // Nos casos existentes até o momento, o params e o data nunca terão informações diferentes
       /* coverage ignore if */
       if (!data.hasOwnProperty(name)) {
         throw new Error('Error while processing a query prameter. Parameter \'' + name + '\' don\'t exists on the parameters object')
       }
 
-      var value = data[name]
-      var col = index + 1
+      const value = data[name]
+      const col = index + 1
 
       if (value && value.constructor.name === 'Array') {
-        value.forEach(function (arrValue) {
-          setParameter(stmt, col + arrInc, arrValue, dialect)
-          arrInc++
-        })
+        value.forEach(setValueArrValue(col))
         arrInc = (arrInc > 0) ? --arrInc : arrInc
       } else {
         setParameter(stmt, col + arrInc, value, dialect)
@@ -261,26 +255,26 @@ function bindParams(stmt, params, data, dialect) {
 }
 
 function prepareStatement(cnx, sql, data, returnGeneratedKeys, dialect) {
-  var stmt
-  var params = []
+  let stmt
+  const params = []
 
   if (data && data.constructor.name === 'Object') {
-    var keys = Object.keys(data)
-    var placeHolders = sql.match(/:\w+/g) || []
+    const keys = Object.keys(data)
+    const placeHolders = sql.match(/:\w+/g) || []
 
-    placeHolders.forEach(function (namedParam) {
-      var name = namedParam.slice(1)
+    placeHolders.forEach(function(namedParam) {
+      const name = namedParam.slice(1)
 
       if (keys.indexOf(name) >= 0) {
         params.push(name)
       }
     })
 
-    params.forEach(function (namedParam) {
-      var val = data[namedParam]
+    params.forEach(function(namedParam) {
+      const val = data[namedParam]
 
       if (val && val.constructor.name === 'Array') {
-        var questionArray = val.map(function () {
+        const questionArray = val.map(function() {
           return '?'
         })
         sql = sql.replace(':' + namedParam, questionArray.join(','))
@@ -290,15 +284,13 @@ function prepareStatement(cnx, sql, data, returnGeneratedKeys, dialect) {
     })
   }
 
-  stmt = (returnGeneratedKeys)
-    ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-    : cnx.prepareStatement(sql)
+  stmt = (returnGeneratedKeys) ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) : cnx.prepareStatement(sql)
 
   return bindParams(stmt, params, data, dialect)
 }
 
 function sqlInsert(ds, sql, data, returnGeneratedKeys) {
-  var cnx, stmt, rsk, rows, affected
+  let cnx, stmt, rsk, rows, affected
 
   try {
     cnx = this.connection || getConnection(ds)
@@ -308,16 +300,17 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 
     rsk = stmt.getGeneratedKeys()
     rows = []
-
-    while (rsk && rsk.next()) {
-      rows.push(rsk.getObject(1))
+    if (rsk) {
+      while (rsk.next()) {
+        rows.push(rsk.getObject(1))
+      }
     }
   } finally {
-    closeResource(stmt);
+    closeResource(stmt)
     stmt = null
 
     if (!this.connection) {
-      closeResource(cnx);
+      closeResource(cnx)
       cnx = null
     }
   }
@@ -330,18 +323,18 @@ function sqlInsert(ds, sql, data, returnGeneratedKeys) {
 }
 
 function sqlSelect(ds, sqlCmd, dataValues, extraData) {
-  var schar = this.dialect.scapeChar
-  var cnx, stmt, sql, data, rs, result
-  var whereData = {}
+  const schar = this.dialect.scapeChar
+  let cnx, stmt, sql, data, rs, result
+  const whereData = {}
 
   if (sqlCmd.match(/^SELECT|^\(SELECT|^WITH/i)) {
     sql = sqlCmd
     data = dataValues
   } else {
-    var table = sqlCmd.split(' ')[0]
-    var columns = dataValues || []
-    var vrg = ''
-    var cols = ''
+    const table = sqlCmd.split(' ')[0]
+    const columns = dataValues || []
+    let vrg = ''
+    let cols = ''
 
     for (var i = 0; i < columns.length; i++) {
       cols += vrg + schar + columns[i].split(' ')[0] + schar
@@ -350,9 +343,9 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
 
     cols = (cols === '') ? '*' : cols
 
-    var whereCondition = extraData || {}
-    var where = ''
-    var and = ''
+    let whereCondition = extraData || {}
+    let where = ''
+    let and = ''
 
     for (var wkey in whereCondition) {
       whereData['w_' + wkey] = whereCondition[wkey]
@@ -385,22 +378,21 @@ function sqlSelect(ds, sqlCmd, dataValues, extraData) {
 }
 
 function sqlExecute(ds, sql, data, returnGeneratedKeys) {
-  var cnx, stmt, result
-  var sqlSelectCtx = sqlSelect.bind(this, ds)
-  var sqlInsertCtx = sqlInsert.bind(this, ds)
+  let cnx, stmt, result
+  const sqlSelectCtx = sqlSelect.bind(this, ds)
+  const sqlInsertCtx = sqlInsert.bind(this, ds)
 
   if (sql) {
     sql = sql.trim()
   }
 
-  if (sql.match(/^(SELECT|\(SELECT)/i)) {
+  if (sql.match(/^SELECT|^\(SELECT|^WITH/i)) {
     return sqlSelectCtx(sql, data)
   } else if (sql.substring(0, 6).toUpperCase() === 'INSERT') {
     return sqlInsertCtx(sql, data, returnGeneratedKeys)
   }
 
   try {
-
     cnx = this.connection || getConnection(ds)
     stmt = prepareStatement(cnx, sql.trim(), data)
     this.logFunction('execute', 'executeUpdate', sql)
@@ -447,9 +439,9 @@ function fetchRows(rs, returnColumnLabel, dateAsString) {
     for (var nc = 1; nc < numColumns + 1; nc++) {
       var value
 
-      var name = columns[nc];
-      var type = typesInfo[nc].type;
-      var typeName = typesInfo[nc].typeName;
+      var name = columns[nc]
+      var type = typesInfo[nc].type
+      var typeName = typesInfo[nc].typeName
 
       if (type === Types.BINARY) {
         value = rs.getBytes(nc)
@@ -461,18 +453,18 @@ function fetchRows(rs, returnColumnLabel, dateAsString) {
         row[name] = null
       } else if (value === true || value === false) {
         row[name] = value
-      } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { //Data
+      } else if ([Types.DATE, Types.TIME, Types.TIMESTAMP].indexOf(type) >= 0) { // Data
         /* coverage ignore if */
         if (dateAsString) {
           row[name] = value.toString()
         } else {
           row[name] = new Date(Number(value.getTime()))
         }
-      } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { //String/char...
+      } else if ([Types.LONGVARCHAR, Types.CHAR, Types.VARCHAR, Types.NVARCHAR, Types.LONGNVARCHAR].indexOf(type) >= 0) { // String/char...
         value = value.toString()
 
         /* Tipo JSON no MySQL */
-        if (typeName == 'JSON') {
+        if (typeName === 'JSON') {
           try {
             value = JSON.parse(value)
           } catch (error) {
@@ -508,7 +500,7 @@ function fetchRows(rs, returnColumnLabel, dateAsString) {
  */
 function tableInsert(ds, table, itens, returnGeneratedKeys) {
   var logFunction = this.logFunction
-  var dialect = this.dialect;
+  var dialect = this.dialect
   var schar = dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
   var cnx = this.connection || getConnection(ds)
@@ -518,7 +510,7 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
   var itIsDataArray = (itens.constructor.name === 'Array')
 
   function mountSql(table, params, data) {
-    var placeHolders = Array.apply(null, new Array(params.length)).map(function () { return '?' })
+    var placeHolders = Array.apply(null, new Array(params.length)).map(function() { return '?' })
 
     return ['INSERT INTO ', schar, table, schar,
       ' (', schar, params.join(schar + ', ' + schar), schar, ')',
@@ -527,12 +519,8 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
   }
 
   function mountStmt(sql, params, data) {
-    stmt = (returnGeneratedKeys)
-      ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-      : cnx.prepareStatement(sql)
-
+    stmt = (returnGeneratedKeys) ? cnx.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) : cnx.prepareStatement(sql)
     bindParams(stmt, params, data, dialect)
-
     return stmt
   }
 
@@ -554,7 +542,7 @@ function tableInsert(ds, table, itens, returnGeneratedKeys) {
 
   try {
     if (itIsDataArray) {
-      itens.forEach(function (data) {
+      itens.forEach(function(data) {
         var params = Object.keys(data)
 
         sql = mountSql(table, params, data)
@@ -621,7 +609,7 @@ function tableUpdate(ds, table, row, whereCondition) {
 
   var sql = 'UPDATE ' + schar + table.split(' ')[0] + schar + ' SET ' + values + ((whereCondition) ? ' WHERE ' + where : '')
 
-  var cnx, stmt, affected;
+  var cnx, stmt, affected
 
   try {
     cnx = this.connection || getConnection(ds)
@@ -653,7 +641,7 @@ function tableUpdate(ds, table, row, whereCondition) {
  * linhas afetadas.
  */
 function tableDelete(ds, table, whereCondition) {
-  var schar = this.dialect.scapeChar
+  const schar = this.dialect.scapeChar
   // var sdel = this.dialect.stringDelimiter
   var whereData = {}
   var where = ''
@@ -669,7 +657,7 @@ function tableDelete(ds, table, whereCondition) {
 
   var sql = 'DELETE FROM ' + schar + table.split(' ')[0] + ((whereCondition) ? schar + ' WHERE ' + where : schar)
 
-  var cnx, stmt, affected;
+  var cnx, stmt, affected
 
   try {
     cnx = this.connection || getConnection(ds)
@@ -701,9 +689,9 @@ function tableDelete(ds, table, whereCondition) {
  * @returns {Object}
  */
 function executeInSingleTransaction(ds, fncScript, context) {
-  var rs
-  var cnx = getConnection(ds)
-  var ctx = {
+  let rs
+  const cnx = getConnection(ds)
+  const ctx = {
     connection: cnx,
     dialect: this.dialect,
     logFunction: this.logFunction
@@ -735,7 +723,6 @@ function executeInSingleTransaction(ds, fncScript, context) {
     cnx.rollback()
   } finally {
     closeResource(cnx)
-    cnx = null
   }
 
   return rs
@@ -743,67 +730,11 @@ function executeInSingleTransaction(ds, fncScript, context) {
 
 function closeResource(resource) {
   if (resource != null) {
-    resource.close();
+    resource.close()
   }
 }
 
-/**
- * @param {FileInputStream} fis
- * @param {int} size
- */
-function Blob(fis, size) {
-  this.fis = fis
-  this.size = size
-}
-
-// function hookErrorFunc(error) {
-//   var st = error.getStackTrace()
-//   var regex = /.*jdk\.nashorn\.internal\.scripts\.Script\$Recompilation.*\^eval?\\_\.(\w+)\(<eval>.*<eval>?:(\d+)\)$/g;
-//   var groups
-//   var errorDB
-
-//   for (var i = 0; i < st.length; i++) {
-//     var trace = st[i]
-
-//     if ((groups = regex.exec(trace)) !== undefined) {
-//       break
-//     }
-//   }
-
-//   errorDB = new Error([
-//     '[thrust] ', scriptInfo.scriptFile, '_.', groups[1], ' #' + groups[2], '\n' + error.toString()].join(''),
-//     scriptInfo.scriptFile + ' =>  _.' + groups[1],
-//     groups[2]
-//   )
-//   errorDB.stackTrace = Java.from(st)
-
-//   return errorDB
-// }
-
-// var hookFunction = function (options) {
-//   var target = createDbInstance(options)
-//   var hook = {}
-
-//   Object.getOwnPropertyNames(target).forEach(function (prop) {
-//     // print('PROP =>', prop)
-
-//     if (target[prop].constructor.name === 'Function') {
-//       hook[prop] = function () {
-//         try {
-//           return target[prop].apply(null, arguments)
-//         } catch (error) {
-//           throw hookErrorFunc(error)
-//         }
-//       }
-//     } else {
-//       hook[prop.name] = prop
-//     }
-//   })
-
-//   return hook
-// }
-
 exports = {
-  // createDbInstance: hookFunction
-  createDbInstance: createDbInstance
+  createDbInstance: createDbInstance,
+  version: localResource.version
 }
